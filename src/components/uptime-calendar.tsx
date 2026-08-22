@@ -60,6 +60,7 @@ export function UptimeCalendar({ months }: { months: CalendarMonth[] }) {
                   <TooltipContent
                     className="sp-popup"
                     arrowClassName="sp-popup-arrow"
+                    side="bottom"
                     sideOffset={6}
                     collisionPadding={12}
                   >

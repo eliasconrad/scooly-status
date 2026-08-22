@@ -145,6 +145,8 @@ function toService(row: Row): Service {
     degraded_ms: Number(row.degraded_ms ?? 3000),
     sort_order: Number(row.sort_order ?? 0),
     active: Boolean(row.active ?? true),
+    wirkung_ausfall: (row.wirkung_ausfall as string | null) ?? null,
+    wirkung_langsam: (row.wirkung_langsam as string | null) ?? null,
   };
 }
 

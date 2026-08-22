@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 132 Tests
+Prüfen: npm test        → 140 Tests
 DB:     npm run pruefe:datenbank
 ```
 
@@ -61,6 +61,20 @@ GET /api/check  ──►  fetch() auf jede probe_url
                      │
                      └──► Telegram an Elias + E-Mail an Abonnenten
 ```
+
+### Was in einer Meldung steht
+
+Zuerst, was das für die Leute heißt, danach die Technik:
+
+> Neue Aufgaben, Quizze und Karteikarten lassen sich gerade nicht erstellen. Was schon
+> da ist, kannst du weiter lernen. Scooly KI antwortet mit HTTP 502. 3 Messungen
+> hintereinander ohne Erfolg, zuletzt nach 240 ms.
+
+Der erste Satz kommt aus `services.wirkung_ausfall` bzw. `wirkung_langsam` und steht
+auch auf der Seite unter dem Dienstnamen, sobald etwas ist. Wer gerade lernen will,
+kann mit "HTTP 502" nichts anfangen - und der Zusatz "was schon da ist, bleibt nutzbar"
+verhindert, dass jemand die App für komplett kaputt hält. Fehlt der Satz in der
+Datenbank, steht nur die Technik da; erfunden wird nichts.
 
 Die Schwellen stehen oben in `src/lib/checker.ts` (`FAIL_STREAK`, `RECOVER_STREAK`).
 Drei Messungen à 5 Minuten heißt: eine echte Störung ist nach spätestens 15 Minuten auf
@@ -266,5 +280,7 @@ Kachel in der Kopfzeile, damit Reiter und Seite zusammenpassen.
 
 ## Stack
 
-Next.js 16 · Tailwind 4 · shadcn/ui (Tooltip, Dialog) · motion · lenis · lucide-react ·
-@fontsource-variable/inter · Supabase
+Next.js 16 · Tailwind 4 · shadcn/ui (Tooltip, Dialog) · motion · lucide-react · Supabase
+
+Kein Lenis: Auf einer Status-Seite will man sofort scrollen, nicht gleiten - besonders
+wenn gerade etwas kaputt ist.

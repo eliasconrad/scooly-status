@@ -87,7 +87,8 @@ async function main() {
   // ---- 2. Spalten vollständig? -------------------------------------------
   console.log("\n\x1b[1m2. Spalten\x1b[0m");
   const erwartet: Record<string, string[]> = {
-    services: ["id", "slug", "name", "probe_url", "degraded_ms", "sort_order", "active", "status"],
+    services: ["id", "slug", "name", "probe_url", "degraded_ms", "sort_order", "active", "status",
+               "wirkung_ausfall", "wirkung_langsam"],
     checks: ["service_slug", "checked_at", "ok", "degraded", "status_code", "response_ms", "error"],
     daily_uptime: [
       "service_slug", "day", "checks", "failed", "degraded",

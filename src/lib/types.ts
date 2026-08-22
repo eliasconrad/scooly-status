@@ -27,6 +27,10 @@ export type Service = {
   probe_url: string | null;
   /** Antwortzeit in ms, ab der als "beeinträchtigt" gewertet wird. */
   degraded_ms: number;
+  /** Was Leute merken, wenn der Dienst gar nicht geht. */
+  wirkung_ausfall?: string | null;
+  /** Was Leute merken, wenn er nur langsam ist. */
+  wirkung_langsam?: string | null;
   sort_order: number;
   active: boolean;
 };

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SmoothScroll } from "@/components/smooth-scroll";
 
 export const metadata: Metadata = {
   title: "Scooly Status",
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body
         className="min-h-full"
       >
-        <SmoothScroll />
         <TooltipProvider delayDuration={80}>
           <div className="sp-container">{children}</div>
         </TooltipProvider>

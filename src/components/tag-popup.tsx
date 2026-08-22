@@ -29,18 +29,25 @@ export function TagPopup({ tag }: { tag: UptimeDay }) {
 
   const ohneMessung = tag.uptime === null || tag.checks === 0;
 
+  // Nur was da ist. Fehlt ein Wert, steht er nicht als Lücke im Popup.
+  const gemessen = [
+    tag.avg_response_ms !== null ? `Ø ${zeit(tag.avg_response_ms)}` : null,
+    tag.max_response_ms !== null ? `langsamste ${zeit(tag.max_response_ms)}` : null,
+    tag.top_error,
+  ].filter(Boolean) as string[];
+
   return (
-    <div className="w-[325px] p-[15px] text-left">
+    <div className="w-[290px] max-w-[calc(100vw-32px)] p-[13px] text-left">
       <div className="text-[14px] font-medium leading-[21px] text-[var(--sp-ink)]">
         {datum(tag.day)}
       </div>
 
       {ohneMessung ? (
-        <p className="mt-[10px] text-[16px] leading-6 text-[var(--sp-muted)]">
+        <p className="mt-[6px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
           Für diesen Tag liegen keine Messdaten vor.
         </p>
       ) : felder.length === 0 ? (
-        <p className="mt-[10px] text-[16px] leading-6">
+        <p className="mt-[6px] text-[14px] leading-[20px]">
           An diesem Tag wurde kein Ausfall aufgezeichnet.
         </p>
       ) : (
@@ -48,11 +55,11 @@ export function TagPopup({ tag }: { tag: UptimeDay }) {
           {felder.map((feld) => (
             <div
               key={feld.label}
-              className="my-[10px] flex items-center rounded-[2px] bg-[rgba(222,220,209,0.3)] px-[14px] pt-[9px] pb-[8px] text-[16px] font-medium leading-6"
+              className="mt-[8px] flex items-center rounded-[2px] bg-[rgba(222,220,209,0.3)] px-[11px] pt-[7px] pb-[6px] text-[14px] font-medium leading-[20px]"
             >
-              <span className="mr-4 flex items-center">
+              <span className="mr-3 flex items-center">
                 <TriangleAlert
-                  size={16}
+                  size={14}
                   strokeWidth={2}
                   className="mr-2 shrink-0"
                   style={{ color: feld.farbe }}
@@ -65,56 +72,32 @@ export function TagPopup({ tag }: { tag: UptimeDay }) {
         </div>
       )}
 
-      {(tag.avg_response_ms !== null || tag.top_error) && (
-        <div>
-          <h3 className="mt-[19px] mb-[8px] text-[13px] font-medium uppercase leading-5 tracking-[0.6px] text-[var(--sp-muted)]">
-            Gemessen
-          </h3>
-          <dl className="text-[14px] leading-[21px]">
-            {tag.avg_response_ms !== null && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-[var(--sp-muted)]">Antwortzeit im Schnitt</dt>
-                <dd>{zeit(tag.avg_response_ms)}</dd>
-              </div>
-            )}
-            {tag.max_response_ms !== null && (
-              <div className="flex justify-between gap-4">
-                <dt className="text-[var(--sp-muted)]">langsamste Antwort</dt>
-                <dd>{zeit(tag.max_response_ms)}</dd>
-              </div>
-            )}
-            {tag.top_error && (
-              <div className="flex justify-between gap-4">
-                <dt className="shrink-0 text-[var(--sp-muted)]">häufigster Fehler</dt>
-                <dd className="text-right">{tag.top_error}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
+      {/* Messwerte in einer Zeile - drei Zeilen darüber machten das Popup
+          doppelt so hoch wie beim Original. */}
+      {gemessen.length > 0 && (
+        <p className="mt-[8px] text-[13px] leading-[19px] text-[var(--sp-muted)]">
+          {gemessen.join(" · ")}
+        </p>
       )}
 
-      <div>
-        <h3 className="mt-[19px] mb-[10px] text-[13px] font-medium uppercase leading-5 tracking-[0.6px] text-[var(--sp-muted)]">
-          Zugehörig
-        </h3>
-        {tag.incidents.length === 0 ? (
-          <p className="text-[16px] leading-[18px] text-[var(--sp-muted)]">
-            Kein Vorfall und keine Wartung zu diesem Tag.
-          </p>
-        ) : (
+      {tag.incidents.length > 0 && (
+        <div>
+          <h3 className="mt-[14px] mb-[6px] text-[13px] font-medium uppercase leading-[19px] tracking-[0.6px] text-[var(--sp-muted)]">
+            Zugehörig
+          </h3>
           <ul>
             {tag.incidents.map((vorfall) => (
               <li
                 key={vorfall.id}
-                className="mb-[2px] text-[16px] leading-[18px]"
+                className="mb-[2px] text-[14px] leading-[19px]"
                 style={{ color: IMPACT_COLOR[vorfall.impact] }}
               >
                 {vorfall.title}
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -55,6 +55,7 @@ export function UptimeBar({ days, uptime90 }: { days: UptimeDay[]; uptime90: num
               <TooltipContent
                 className="sp-popup"
                 arrowClassName="sp-popup-arrow"
+                side="bottom"
                 sideOffset={6}
                 collisionPadding={12}
               >

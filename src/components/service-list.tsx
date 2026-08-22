@@ -6,6 +6,19 @@ import type { ServiceStatus } from "@/lib/types";
  * Die Dienstliste. Beim Original sind die Zeilen ein einziger Rahmen mit
  * geteilten Trennlinien - nur oben und unten je 4px Radius.
  */
+/**
+ * Was der Zustand für die Leute bedeutet.
+ *
+ * Steht nur da, wenn wirklich etwas ist - bei "Betriebsbereit" wäre der
+ * Satz Lärm. Fehlt der Text in der Datenbank, steht auch nichts da; erfunden
+ * wird nichts.
+ */
+function wirkung(s: ServiceStatus): string | null {
+  if (s.status === "operational") return null;
+  if (s.status === "degraded_performance") return s.service.wirkung_langsam ?? null;
+  return s.service.wirkung_ausfall ?? null;
+}
+
 export function ServiceList({ services }: { services: ServiceStatus[] }) {
   return (
     <section>
@@ -39,6 +52,12 @@ export function ServiceList({ services }: { services: ServiceStatus[] }) {
                 {STATUS_LABEL[s.status]}
               </span>
             </div>
+            {wirkung(s) && (
+              <p className="pt-[2px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
+                {wirkung(s)}
+              </p>
+            )}
+
             <UptimeBar days={s.days} uptime90={s.uptime90} />
           </div>
         ))}

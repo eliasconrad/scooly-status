@@ -15,6 +15,8 @@ create table if not exists services (
   degraded_ms integer not null default 3000,
   sort_order  integer not null default 0,
   active      boolean not null default true,
+  wirkung_ausfall text,                        -- was Leute merken, wenn nichts geht
+  wirkung_langsam text,                        -- was Leute merken, wenn es zäh ist
   status      text not null default 'operational'
               check (status in ('operational','degraded_performance','partial_outage',
                                 'major_outage','under_maintenance')),

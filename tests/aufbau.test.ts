@@ -158,3 +158,37 @@ test("der Inhalt nimmt 90 Prozent der Fensterbreite, höchstens 850", () => {
   assert.match(block, /max-width:\s*var\(--sp-width\)/);
   assert.match(css, /--sp-width:\s*850px/);
 });
+
+test("die Popups stehen unter dem Balken, nicht darüber", () => {
+  for (const datei of ["src/components/uptime-bar.tsx", "src/components/uptime-calendar.tsx"]) {
+    assert.match(lies(datei), /side="bottom"/, `${datei} setzt die Seite nicht`);
+  }
+});
+
+test("der Pfeil hat für beide Seiten die passenden Rahmenkanten", () => {
+  // Kippt Radix am Fensterrand nach oben, muss der Pfeil mitdrehen -
+  // sonst läuft die Rahmenlinie des Kastens durch den Pfeil hindurch.
+  const css = lies("src/app/globals.css");
+  const unten = css.match(/\.sp-popup\[data-side="bottom"\] \.sp-popup-arrow \{([^}]+)\}/);
+  const oben = css.match(/\.sp-popup\[data-side="top"\] \.sp-popup-arrow \{([^}]+)\}/);
+  assert.ok(unten && oben, "es fehlt eine der beiden Regeln");
+  assert.match(unten![1], /border-top/);
+  assert.match(unten![1], /border-left/);
+  assert.match(oben![1], /border-right/);
+  assert.match(oben![1], /border-bottom/);
+});
+
+test("das Popup bleibt schmal und passt auf schmale Geräte", () => {
+  const popup = lies("src/components/tag-popup.tsx");
+  const breite = popup.match(/w-\[(\d+)px\]/);
+  assert.ok(breite, "keine feste Breite gefunden");
+  assert.ok(Number(breite![1]) <= 300, `${breite![1]}px ist zu breit fürs Handy`);
+  assert.match(popup, /max-w-\[calc\(100vw-32px\)\]/, "sonst ragt es auf schmalen Geräten heraus");
+});
+
+test("die Messwerte stehen in einer Zeile, nicht als Liste", () => {
+  // Drei Zeilen Definitionsliste machten das Popup doppelt so hoch.
+  const popup = lies("src/components/tag-popup.tsx");
+  assert.doesNotMatch(popup, /<dl/, "eine Definitionsliste treibt die Höhe hoch");
+  assert.match(popup, /gemessen\.join\(" · "\)/);
+});

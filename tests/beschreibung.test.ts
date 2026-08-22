@@ -89,3 +89,47 @@ test("die Beschreibung behauptet nichts über die Ursache", () => {
     }
   }
 });
+
+const kiMitWirkung = {
+  name: "Scooly KI",
+  degraded_ms: 12000,
+  wirkung_ausfall:
+    "Neue Aufgaben, Quizze und Karteikarten lassen sich gerade nicht erstellen. Was schon da ist, kannst du weiter lernen.",
+  wirkung_langsam: "Neue Aufgaben, Quizze und Karteikarten brauchen gerade deutlich länger.",
+};
+
+test("die Auswirkung steht vor der Technik - nicht dahinter", () => {
+  const text = beschreibungAusfall(
+    kiMitWirkung,
+    [{ status_code: 502, response_ms: 200 }],
+    { status_code: 502, error: "HTTP 502", response_ms: 200 },
+  );
+  const wirkung = text.indexOf("lassen sich gerade nicht erstellen");
+  const technik = text.indexOf("HTTP 502");
+  assert.ok(wirkung >= 0, "die Auswirkung fehlt");
+  assert.ok(technik >= 0, "die Technik fehlt");
+  assert.ok(wirkung < technik, "wer lernen will, kann mit HTTP 502 nichts anfangen");
+});
+
+test("auch bei langsam steht zuerst, was das für die Leute heißt", () => {
+  const text = beschreibungLangsam(kiMitWirkung, [{ response_ms: 18000 }], 1200);
+  assert.ok(text.startsWith("Neue Aufgaben"), text.slice(0, 60));
+  assert.match(text, /18,0 s pro Anfrage/);
+});
+
+test("ohne hinterlegte Auswirkung wird keine erfunden", () => {
+  const text = beschreibungAusfall(
+    { name: "Irgendwas", wirkung_ausfall: null },
+    [{ status_code: 500 }],
+    { status_code: 500, error: "HTTP 500", response_ms: 10 },
+  );
+  assert.ok(text.startsWith("Irgendwas antwortet mit HTTP 500."), text);
+});
+
+test("die Auswirkung sagt auch, was trotzdem noch geht", () => {
+  // Wichtiger Teil: "Was schon da ist, kannst du weiter lernen" verhindert,
+  // dass jemand die App für komplett kaputt hält.
+  for (const satz of [kiMitWirkung.wirkung_ausfall]) {
+    assert.match(satz, /Was schon da ist/);
+  }
+});

@@ -315,11 +315,15 @@ type Messwert = {
  * über die Ursache, keine Beschwichtigung.
  */
 export function beschreibungAusfall(
-  service: Pick<Service, "name">,
+  service: Pick<Service, "name" | "wirkung_ausfall">,
   fenster: Messwert[],
   latest: Pick<Probe, "error" | "status_code" | "response_ms">,
 ): string {
   const teile: string[] = [];
+
+  // Zuerst, was das für die Leute heißt. Wer gerade lernen will, kann mit
+  // "HTTP 502" nichts anfangen - der will wissen, was jetzt nicht geht.
+  if (service.wirkung_ausfall) teile.push(service.wirkung_ausfall);
 
   teile.push(
     latest.status_code
@@ -342,7 +346,7 @@ export function beschreibungAusfall(
 
 /** Wie langsam genau - gemessen, mit Grenzwert und üblichem Wert daneben. */
 export function beschreibungLangsam(
-  service: Pick<Service, "name" | "degraded_ms">,
+  service: Pick<Service, "name" | "degraded_ms" | "wirkung_langsam">,
   fenster: Messwert[],
   ueblich: number | null,
 ): string {
@@ -354,10 +358,12 @@ export function beschreibungLangsam(
     ? Math.round(zeiten.reduce((a, b) => a + b, 0) / zeiten.length)
     : 0;
 
-  const teile = [
+  const teile: string[] = [];
+  if (service.wirkung_langsam) teile.push(service.wirkung_langsam);
+  teile.push(
     `${service.name} ist erreichbar, braucht aber ${zeit(schnitt)} pro Anfrage.`,
     `Grenzwert sind ${zeit(service.degraded_ms)}.`,
-  ];
+  );
 
   if (ueblich && ueblich > 0) {
     const faktor = schnitt / ueblich;
@@ -465,5 +471,7 @@ function toService(row: Record<string, unknown>): Service {
     degraded_ms: Number(row.degraded_ms ?? 3000),
     sort_order: Number(row.sort_order ?? 0),
     active: true,
+    wirkung_ausfall: (row.wirkung_ausfall as string | null) ?? null,
+    wirkung_langsam: (row.wirkung_langsam as string | null) ?? null,
   };
 }

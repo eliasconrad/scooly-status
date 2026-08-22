@@ -246,12 +246,27 @@ body {
   }
 }
 
+/* Der Pfeil ist ein gedrehtes Quadrat. Sichtbar sind nur die zwei Seiten,
+   die zur Rahmenlinie des Kastens passen - welche zwei, hängt davon ab, wo
+   das Popup steht. Normalerweise unter dem Balken, Pfeil zeigt nach oben;
+   am unteren Fensterrand kippt Radix nach oben und die Seiten drehen mit. */
 .sp-popup-arrow {
   background: var(--sp-bg);
   fill: var(--sp-bg);
+  border: 0;
+  border-radius: 0;
+}
+
+.sp-popup[data-side="bottom"] .sp-popup-arrow {
+  border-top: 1px solid var(--sp-rule);
+  border-left: 1px solid var(--sp-rule);
+  transform: translateY(calc(50% + 1px)) rotate(45deg);
+}
+
+.sp-popup[data-side="top"] .sp-popup-arrow {
   border-right: 1px solid var(--sp-rule);
   border-bottom: 1px solid var(--sp-rule);
-  border-radius: 0;
+  transform: translateY(calc(-50% - 1px)) rotate(45deg);
 }
 
 /* ------------------------------------------------------------------
