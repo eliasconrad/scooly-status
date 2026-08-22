@@ -3,7 +3,7 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TagPopup } from "./tag-popup";
 import { useTagAuswahl } from "@/lib/use-tag-auswahl";
-import { BAR, formatUptime, overallUptime, uptimeColor } from "@/lib/uptime";
+import { BAR, formatUptime, overallUptime, tagesFarbe } from "@/lib/uptime";
 import type { UptimeDay } from "@/lib/types";
 
 /**
@@ -47,7 +47,7 @@ export function UptimeBar({ days, uptime90 }: { days: UptimeDay[]; uptime90: num
                   y={0}
                   width={BAR.width}
                   height={BAR.viewBoxHeight}
-                  fill={uptimeColor(day.uptime)}
+                  fill={tagesFarbe(day)}
                   className="sp-tag cursor-pointer outline-none"
                   {...griffe(day.day)}
                 />

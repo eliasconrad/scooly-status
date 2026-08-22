@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 140 Tests
+Prüfen: npm test        → 145 Tests
 DB:     npm run pruefe:datenbank
 ```
 
@@ -259,7 +259,28 @@ immer 200 zurückgibt, macht die ganze Status-Page wertlos.
 | Sprache | Englisch | Deutsch |
 | Statusband | Zeitstempelzeile bleibt leer | zeigt "Zuletzt geprüft vor X Minuten" (Band dadurch 8 px höher) |
 | Kalenderwoche | beginnt Sonntag | beginnt Montag |
-| Balkenfarben | Originalformel unbekannt | aus den gerenderten `fill`-Werten rekonstruiert, siehe `src/lib/uptime.ts` |
+| Balkenfarben | nach Verfügbarkeit in Prozent | nach **Ausfallminuten**, siehe unten |
+
+### Zur Farbe der Tagesbalken
+
+Das Original färbt nach Verfügbarkeit in Prozent. Nachgerechnet ist das an beiden Enden
+unbrauchbar: Eine einzige zähe Antwort - 5 von 1440 Minuten - färbt den Tag gelb, ein Tag
+mit einer zähen Stunde wird rot, und ab 95 % ist alles gleich rot, egal ob halbe Stunde
+oder halber Tag.
+
+Hier zählen deshalb **Minuten**, weil das ist, was Leute merken - und weil dieselben Zahlen
+ohnehin im Popup stehen. Zähe Minuten wiegen ein Viertel: Eine Stunde Wartezeit nervt, ist
+aber nicht dasselbe wie eine Viertelstunde gar nichts.
+
+| Ausfallminuten | Farbe |
+|---|---|
+| 0 | grün |
+| 5 | gelbgrün |
+| 30 | gelb |
+| 120 | orange |
+| ab 480 | rot |
+
+Dazwischen wird interpoliert, die Optik bleibt also der Verlauf des Originals.
 
 ### Zur Schrift
 

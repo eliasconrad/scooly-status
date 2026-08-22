@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  BAR, formatUptime, overallUptime, uptimeColor, worstStatus,
+  BAR, farbeFuerMinuten, formatUptime, overallUptime, tagesFarbe, tagesSchwere, worstStatus,
 } from "../src/lib/uptime";
 import type { UptimeDay } from "../src/lib/types";
 
@@ -38,28 +38,85 @@ test("Verfügbarkeit wird abgeschnitten, nicht aufgerundet", () => {
   assert.equal(formatUptime(0), "0.00 %");
 });
 
-test("die Balkenfarben treffen die Stützstellen des Originals", () => {
-  assert.equal(uptimeColor(1), "rgb(118, 173, 42)");
-  assert.equal(uptimeColor(0.95), "rgb(224, 67, 67)");
-  assert.equal(uptimeColor(0.5), "rgb(224, 67, 67)", "unter 95 % bleibt es rot");
-  assert.equal(uptimeColor(0.995), "rgb(248, 167, 42)");
+/** Kurzschreibweise: Tag mit x Ausfallminuten und y zähen Minuten. */
+const tagMit = (aus: number, zaeh = 0): UptimeDay => ({
+  day: "2026-01-01", uptime: 1 - (aus + zaeh) / 1440, checks: 288,
+  downtime_minutes: aus, degraded_minutes: zaeh,
+  avg_response_ms: null, max_response_ms: null, top_error: null, incidents: [],
+});
+
+/** Grob einordnen, damit die Tests nicht an einzelnen RGB-Werten kleben. */
+function stufe(farbe: string): string {
+  const [r, g] = farbe.match(/\d+/g)!.map(Number);
+  if (r < 140 && g > 160) return "grün";
+  if (r < 215 && g > 160) return "gelbgrün";
+  if (g > 150) return "gelb";
+  if (g > 90) return "orange";
+  return "rot";
+}
+
+test("ein Tag ohne Ausfall ist grün", () => {
+  assert.equal(stufe(tagesFarbe(tagMit(0))), "grün");
+});
+
+test("eine einzige zähe Antwort färbt den Tag nicht ein", () => {
+  // Das war der Hauptfehler der alten Prozentskala: 5 von 1440 Minuten
+  // zäh reichten für Gelb.
+  assert.equal(stufe(tagesFarbe(tagMit(0, 5))), "grün");
+});
+
+test("ein Tag, der nur zäh war, wird nicht rot", () => {
+  assert.equal(stufe(tagesFarbe(tagMit(0, 60))), "gelbgrün", "eine zähe Stunde");
+  assert.equal(stufe(tagesFarbe(tagMit(0, 240))), "orange", "vier zähe Stunden");
+  assert.notEqual(stufe(tagesFarbe(tagMit(0, 720))), "rot", "auch ein halber zäher Tag ist kein Ausfall");
+});
+
+test("die Ausfalldauer bekommt über den ganzen Tag Spielraum", () => {
+  assert.equal(stufe(tagesFarbe(tagMit(5))), "gelbgrün");
+  assert.equal(stufe(tagesFarbe(tagMit(30))), "gelb");
+  assert.equal(stufe(tagesFarbe(tagMit(120))), "orange");
+  assert.equal(stufe(tagesFarbe(tagMit(480))), "rot");
+  assert.equal(stufe(tagesFarbe(tagMit(720))), "rot");
+});
+
+test("die Farbe wird mit der Ausfalldauer durchgehend schlechter", () => {
+  // Der Rotwert allein taugt nicht als Maßstab: Von Gelb (250,167,42) nach
+  // Orange (232,98,53) sinkt er, obwohl es schlimmer wird. Aussagekräftig
+  // ist der Abstand zwischen Rot und Grün.
+  const roete = (m: number) => {
+    const [r, g] = farbeFuerMinuten(m).match(/\d+/g)!.map(Number);
+    return r - g;
+  };
+  const stufen = [0, 5, 15, 30, 60, 120, 240, 480, 900];
+  for (let i = 1; i < stufen.length; i++) {
+    assert.ok(
+      roete(stufen[i]) >= roete(stufen[i - 1]),
+      `${stufen[i - 1]} -> ${stufen[i]} Min wurde harmloser statt schlimmer`,
+    );
+  }
+  assert.ok(roete(900) > roete(0) + 150, "zwischen bestem und schlimmstem Tag muss Abstand liegen");
+});
+
+test("Ausfall wiegt schwerer als zäh", () => {
+  assert.equal(tagesSchwere(tagMit(60, 0)), 60);
+  assert.equal(tagesSchwere(tagMit(0, 60)), 15, "zäh zählt zu einem Viertel");
+  assert.equal(tagesSchwere(tagMit(10, 40)), 20);
+});
+
+test("alte Tage ohne Minutenspalten werden aus dem Prozentwert gerechnet", () => {
+  const alt = {
+    day: "2026-01-01", uptime: 0.99, checks: 288,
+    downtime_minutes: 0, degraded_minutes: 0,
+    avg_response_ms: null, max_response_ms: null, top_error: null, incidents: [],
+  };
+  assert.equal(Math.round(tagesSchwere(alt)), 14, "1 % von 1440 Minuten");
 });
 
 test("ein Balken ohne Messdaten ist grau, nicht grün", () => {
-  const farbe = uptimeColor(null);
-  assert.notEqual(farbe, "rgb(118, 173, 42)");
+  const ohne = { ...tagMit(0), uptime: null, checks: 0 };
+  const farbe = tagesFarbe(ohne);
   assert.match(farbe, /^#/);
-});
-
-test("die Farbe wird mit sinkender Verfügbarkeit durchgehend dunkler/röter", () => {
-  const rot = (u: number) => Number(uptimeColor(u).match(/\d+/g)![0]);
-  const werte = [1, 0.999, 0.998, 0.996, 0.993, 0.985, 0.96];
-  for (let i = 1; i < werte.length; i++) {
-    assert.ok(
-      rot(werte[i]) >= rot(werte[i - 1]) - 30,
-      `Sprung zwischen ${werte[i - 1]} und ${werte[i]}: ${uptimeColor(werte[i - 1])} → ${uptimeColor(werte[i])}`,
-    );
-  }
+  assert.notEqual(farbe, tagesFarbe(tagMit(0)));
 });
 
 test("die Leiste hat die Geometrie des Originals", () => {

@@ -3,45 +3,65 @@ import type { ComponentStatus, IncidentImpact, UptimeDay } from "./types";
 /**
  * Farbverlauf der Tagesbalken.
  *
- * Die Stützstellen sind aus den gerenderten <rect fill="…"> auf
- * status.claude.com abgelesen (22.08.2026). Zwischen den Stützstellen wird
- * linear in RGB interpoliert - das ist eine Rekonstruktion, nicht die
- * Originalformel von Atlassian, trifft die Optik aber sehr genau.
+ * Gemessen wird in **Ausfallminuten**, nicht in Prozent. Die Prozentskala
+ * davor war an beiden Enden falsch: Eine einzige zähe Antwort (5 von 1440
+ * Minuten) färbte den Tag gelb, ein Tag mit einer zähen Stunde wurde rot -
+ * und ab 95 % war alles gleich rot, egal ob halbe Stunde oder halber Tag.
+ *
+ * Zähe Minuten zählen zu einem Viertel: Eine Stunde Wartezeit nervt, ist
+ * aber nicht dasselbe wie eine Viertelstunde gar nichts.
  */
-const SCALE: Array<[uptime: number, rgb: [number, number, number]]> = [
-  [1.0, [118, 173, 42]],
-  [0.999, [185, 170, 42]],
-  [0.998, [229, 168, 42]],
-  [0.995, [248, 167, 42]],
-  [0.99, [242, 135, 47]],
-  [0.98, [231, 95, 54]],
-  [0.95, [224, 67, 67]],
+const ZAEH_GEWICHT = 0.25;
+
+const SKALA: Array<[minuten: number, rgb: [number, number, number]]> = [
+  [0, [118, 173, 42]],     // nichts war
+  [5, [188, 176, 42]],     // ein Aussetzer
+  [30, [250, 167, 42]],    // eine halbe Stunde
+  [120, [232, 98, 53]],    // zwei Stunden
+  [480, [224, 67, 67]],    // ein halber Arbeitstag
 ];
 
 /** Balken ohne Messdaten - beim Original ein neutrales Grau. */
 export const NO_DATA_FILL = "#d8d5cb";
 
-export function uptimeColor(uptime: number | null): string {
-  if (uptime === null) return NO_DATA_FILL;
-  const u = Math.min(1, Math.max(0, uptime));
+/** Wie schlimm der Tag war, in Minuten. */
+export function tagesSchwere(tag: Pick<UptimeDay, "uptime" | "downtime_minutes" | "degraded_minutes">): number {
+  const aus = tag.downtime_minutes ?? 0;
+  const zaeh = tag.degraded_minutes ?? 0;
 
-  if (u >= SCALE[0][0]) return rgb(SCALE[0][1]);
-  const last = SCALE[SCALE.length - 1];
-  if (u <= last[0]) return rgb(last[1]);
+  // Rückfall für Tage aus der Zeit vor den Minutenspalten: dann bleibt nur
+  // der Prozentwert, aus dem sich die Minuten zurückrechnen lassen.
+  if (aus === 0 && zaeh === 0 && tag.uptime !== null && tag.uptime < 1) {
+    return (1 - tag.uptime) * 24 * 60;
+  }
+  return aus + zaeh * ZAEH_GEWICHT;
+}
 
-  for (let i = 0; i < SCALE.length - 1; i++) {
-    const [hi, hiRgb] = SCALE[i];
-    const [lo, loRgb] = SCALE[i + 1];
-    if (u <= hi && u >= lo) {
-      const t = (hi - u) / (hi - lo);
+export function tagesFarbe(tag: Pick<UptimeDay, "uptime" | "checks" | "downtime_minutes" | "degraded_minutes">): string {
+  if (tag.uptime === null || tag.checks === 0) return NO_DATA_FILL;
+  return farbeFuerMinuten(tagesSchwere(tag));
+}
+
+export function farbeFuerMinuten(minuten: number): string {
+  const m = Math.max(0, minuten);
+  if (m <= SKALA[0][0]) return rgb(SKALA[0][1]);
+
+  const letzte = SKALA[SKALA.length - 1];
+  if (m >= letzte[0]) return rgb(letzte[1]);
+
+  for (let i = 0; i < SKALA.length - 1; i++) {
+    const [von, vonRgb] = SKALA[i];
+    const [bis, bisRgb] = SKALA[i + 1];
+    if (m >= von && m <= bis) {
+      const t = (m - von) / (bis - von);
       return rgb([
-        Math.round(hiRgb[0] + (loRgb[0] - hiRgb[0]) * t),
-        Math.round(hiRgb[1] + (loRgb[1] - hiRgb[1]) * t),
-        Math.round(hiRgb[2] + (loRgb[2] - hiRgb[2]) * t),
+        Math.round(vonRgb[0] + (bisRgb[0] - vonRgb[0]) * t),
+        Math.round(vonRgb[1] + (bisRgb[1] - vonRgb[1]) * t),
+        Math.round(vonRgb[2] + (bisRgb[2] - vonRgb[2]) * t),
       ]);
     }
   }
-  return rgb(last[1]);
+  return rgb(letzte[1]);
 }
 
 function rgb([r, g, b]: [number, number, number]) {

@@ -7,11 +7,8 @@ import {
 } from "@/components/ui/tooltip";
 import { TagPopup } from "./tag-popup";
 import { useTagAuswahl } from "@/lib/use-tag-auswahl";
-import { formatUptime, uptimeColor } from "@/lib/uptime";
+import { formatUptime, tagesFarbe } from "@/lib/uptime";
 import type { CalendarMonth } from "@/lib/calendar";
-
-/** Farbe für Tage ohne Messung - beim Original #EAEAEA. */
-const KEINE_DATEN = "#eaeaea";
 
 /**
  * Der Verfügbarkeits-Kalender. Gemessen: Monatsblock 260 breit, Tagesfelder
@@ -49,12 +46,7 @@ export function UptimeCalendar({ months }: { months: CalendarMonth[] }) {
                       tabIndex={0}
                       {...griffe(cell.tag.day)}
                       className="aspect-square cursor-pointer outline-none transition-[filter] hover:brightness-75 focus-visible:ring-2 focus-visible:ring-[var(--sp-ink)]"
-                      style={{
-                        backgroundColor:
-                          cell.tag.uptime === null
-                            ? KEINE_DATEN
-                            : uptimeColor(cell.tag.uptime),
-                      }}
+                      style={{ backgroundColor: tagesFarbe(cell.tag) }}
                     />
                   </TooltipTrigger>
                   <TooltipContent
