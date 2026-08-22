@@ -211,3 +211,24 @@ test("jeder Vorfallszustand, den der Wächter schreibt, hat einen deutschen Text
     assert.ok(bekannt.includes(z), `Zustand "${z}" hätte auf der Seite keinen Text`);
   }
 });
+
+test("das Prüfskript erwartet genau die Spalten, die im Schema stehen", () => {
+  // Sonst prüft es irgendwann an der Wirklichkeit vorbei.
+  const skript = fs.readFileSync(path.join(wurzel, "scripts/pruefe-datenbank.ts"), "utf8");
+  const block = skript.slice(skript.indexOf("const erwartet"), skript.indexOf("for (const [tabelle"));
+
+  const fehler: string[] = [];
+  for (const treffer of block.matchAll(/(\w+):\s*\[([^\]]+)\]/g)) {
+    const tabelle = treffer[1];
+    const spalten = schema.get(tabelle);
+    if (!spalten) {
+      fehler.push(`Tabelle ${tabelle} gibt es im Schema nicht`);
+      continue;
+    }
+    for (const m of treffer[2].matchAll(/"(\w+)"/g)) {
+      if (!spalten.has(m[1])) fehler.push(`${tabelle}.${m[1]} gibt es nicht`);
+    }
+  }
+  assert.ok(block.length > 100, "der Erwartungsblock wurde nicht gefunden");
+  assert.deepEqual(fehler, [], fehler.join("\n"));
+});

@@ -11,6 +11,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
 Prüfen: npm test        → 89 Tests
+DB:     npm run pruefe:datenbank
 ```
 
 ## Seiten und wie sie zusammenhängen
@@ -127,11 +128,15 @@ Abschneiden, Gewichtung entfernt) - jeder davon wurde gefangen.
 | Routen | Wächter weist ohne/mit falschem Geheimnis ab, scheitert ohne Datenbank laut; Adressprüfung |
 | Aufbau | Jede gelesene Umgebungsvariable steht in `.env.example`; Messtakt im Code = Takt im Zeitplan; Zeitgrenze passt ins Zeitfenster |
 
-**Nicht geprüft: die Supabase-Anbindung selbst.** Dafür bräuchte es eine laufende
-Postgres-Instanz; auf diesem Rechner ist weder Docker noch Postgres installiert. Der
-Schema-Abgleich fängt Tippfehler in Tabellen- und Spaltennamen, aber **nicht**, ob eine
-Abfrage inhaltlich das Richtige liefert. Bevor das scharf geht, gehört der Rauchtest
-unten einmal von Hand gemacht.
+**Die Supabase-Anbindung** lässt sich in der Testreihe nicht abdecken - dafür bräuchte es
+eine laufende Postgres-Instanz. Dafür gibt es `npm run pruefe:datenbank`: das Skript
+arbeitet gegen das echte Projekt, legt einen Prüfdienst `__pruefung` an, schreibt eine
+Messung, überschreibt eine Tagesbilanz, legt einen Vorfall mit Meldung an, sucht ihn mit
+**genau der Abfrage wieder, die auch der Wächter benutzt** - und räumt alles restlos weg,
+auch wenn unterwegs etwas schiefgeht. Mit gesetztem `SUPABASE_ANON_KEY` weist es
+zusätzlich nach, dass mit dem öffentlichen Schlüssel niemand an die Daten kommt.
+
+Einmal laufen lassen, sobald das Projekt steht.
 
 ### Rauchtest, sobald die Datenbank steht
 
@@ -151,9 +156,19 @@ Entscheidungslogik dahinter ist durch die Tests abgedeckt.
 ## Einrichten
 
 1. **Eigenes Supabase-Projekt anlegen** (nicht das von Scooly!) und
-   `supabase/schema.sql` im SQL-Editor ausführen.
+   `supabase/schema.sql` im SQL-Editor ausführen. Danach `npm run pruefe:datenbank`.
+
+   Warum getrennt: Läge die Status-Seite auf Scoolys Datenbank, könnte sie bei einer
+   Supabase-Störung ihre eigenen Messdaten nicht mehr lesen - sie würde also genau dann
+   schweigen, wenn alle draufschauen. Dazu käme, dass der Service-Role-Key (der die
+   Zugriffskontrolle komplett aushängt) dann in zwei Anwendungen läge.
+
+   Einstellungen im Dashboard: Data API **an**, „Automatically expose new tables" **aus**,
+   „Enable automatic RLS" **an**. Die Rechte für `service_role` stehen ausdrücklich im
+   Schema, deshalb läuft es auch bei anders gesetzten Haken.
 2. `.env.example` nach `.env.local` kopieren und ausfüllen.
-3. Bei Vercel deployen, Domain `status.scooly.dev` verbinden.
+3. Bei Vercel deployen (Repo: `eliasconrad/scooly-status`), Domain `status.scooly.dev`
+   verbinden.
 4. In den GitHub-Secrets `CRON_SECRET` und `STATUS_URL` hinterlegen -
    dann läuft `.github/workflows/waechter.yml` von selbst.
 
