@@ -175,6 +175,7 @@ async function rollUpDay(slug: string, day: string): Promise<void> {
       degraded,
       uptime: Number(uptime.toFixed(6)),
       downtime_minutes: failed * INTERVAL_MINUTES,
+      degraded_minutes: degraded * INTERVAL_MINUTES,
     },
     { onConflict: "service_slug,day" },
   );
@@ -299,7 +300,12 @@ async function entscheiden(
 
 async function melden(betreff: string, text: string): Promise<void> {
   await notifyTelegram(`<b>${betreff}</b>${text ? `\n${text}` : ""}`);
-  await notifySubscribers(betreff, text || betreff);
+  const post = await notifySubscribers(betreff, text || betreff);
+  if (!post.eingerichtet) {
+    console.warn("[waechter] Kein Mailversand eingerichtet - Abonnenten wurden nicht benachrichtigt.");
+  } else {
+    console.log(`[waechter] Meldung an ${post.gesendet} Abonnenten, ${post.fehlgeschlagen} Fehlschläge.`);
+  }
 }
 
 function toService(row: Record<string, unknown>): Service {

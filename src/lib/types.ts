@@ -31,6 +31,13 @@ export type Service = {
   active: boolean;
 };
 
+/** Ein Vorfall, so wie er im Popup eines Tages auftaucht. */
+export type RelatedIncident = {
+  id: string;
+  title: string;
+  impact: IncidentImpact;
+};
+
 /** Ein Tag in der 90-Tage-Leiste. */
 export type UptimeDay = {
   /** ISO-Datum, YYYY-MM-DD */
@@ -39,8 +46,12 @@ export type UptimeDay = {
   uptime: number | null;
   /** Anzahl Messungen an diesem Tag */
   checks: number;
-  /** Ausfallminuten an diesem Tag, gerundet */
+  /** Minuten ohne Antwort */
   downtime_minutes: number;
+  /** Minuten über dem Grenzwert - erreichbar, aber zäh */
+  degraded_minutes: number;
+  /** Vorfälle, die an diesem Tag diesen Dienst betrafen */
+  incidents: RelatedIncident[];
 };
 
 export type ServiceStatus = {

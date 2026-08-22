@@ -12,7 +12,7 @@ import type { Service } from "./types";
  * niemand versteht warum.
  */
 export const DEFAULT_SERVICES: Service[] = [
-  { slug: "scooly-web", name: "Scooly (scooly.at)", degraded_ms: 2500, sort_order: 1 },
+  { slug: "scooly-web", name: "Scooly (scooly.dev)", degraded_ms: 2500, sort_order: 1 },
   { slug: "scooly-anmeldung", name: "Anmeldung & Konten", degraded_ms: 2500, sort_order: 2 },
   { slug: "scooly-app", name: "Scooly App (iPhone & iPad)", degraded_ms: 3000, sort_order: 3 },
   { slug: "scooly-ki", name: "Aufgaben, Quiz & Karteikarten", degraded_ms: 12000, sort_order: 4 },

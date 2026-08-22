@@ -1,5 +1,6 @@
 import { demoData, lastNDays } from "./demo";
 import { hasDatabase, supabase } from "./supabase";
+import { incidentsByDay } from "./vorfaelle";
 import { overallUptime } from "./uptime";
 import type {
   ComponentStatus,
@@ -41,7 +42,7 @@ export async function getStatusPageData(incidentDays = INCIDENT_DAYS_ON_HOME): P
     db
       .from("incidents")
       .select("*, incident_updates(*)")
-      .gte("started_at", isoDaysAgo(incidentDays))
+      .gte("started_at", isoDaysAgo(days.length))
       .order("started_at", { ascending: false }),
     db.from("checks").select("checked_at").order("checked_at", { ascending: false }).limit(1),
   ]);
@@ -50,7 +51,7 @@ export async function getStatusPageData(incidentDays = INCIDENT_DAYS_ON_HOME): P
   if (uptimeRes.error) throw uptimeRes.error;
   if (incidentsRes.error) throw incidentsRes.error;
 
-  const uptimeBySlug = new Map<string, Map<string, UptimeDay>>();
+  const uptimeBySlug = new Map<string, Map<string, Omit<UptimeDay, "incidents">>>();
   for (const row of uptimeRes.data ?? []) {
     const slug = row.service_slug as string;
     if (!uptimeBySlug.has(slug)) uptimeBySlug.set(slug, new Map());
@@ -59,15 +60,26 @@ export async function getStatusPageData(incidentDays = INCIDENT_DAYS_ON_HOME): P
       uptime: row.uptime === null ? null : Number(row.uptime),
       checks: Number(row.checks ?? 0),
       downtime_minutes: Number(row.downtime_minutes ?? 0),
+      degraded_minutes: Number(row.degraded_minutes ?? 0),
     });
   }
+
+  const alleVorfaelle = (incidentsRes.data ?? []).map(toIncident);
+  const vorfaelleProTag = incidentsByDay(alleVorfaelle);
 
   const services: ServiceStatus[] = (servicesRes.data ?? []).map((row) => {
     const service = toService(row);
     const byDay = uptimeBySlug.get(service.slug);
-    const dayRows: UptimeDay[] = days.map(
-      (day) => byDay?.get(day) ?? { day, uptime: null, checks: 0, downtime_minutes: 0 },
-    );
+    const dayRows: UptimeDay[] = days.map((day) => {
+      const basis = byDay?.get(day) ?? {
+        day,
+        uptime: null,
+        checks: 0,
+        downtime_minutes: 0,
+        degraded_minutes: 0,
+      };
+      return { ...basis, incidents: vorfaelleProTag.get(`${service.slug}:${day}`) ?? [] };
+    });
     return {
       service,
       status: (row.status ?? "operational") as ComponentStatus,
@@ -76,9 +88,12 @@ export async function getStatusPageData(incidentDays = INCIDENT_DAYS_ON_HOME): P
     };
   });
 
+  // Die Startseite listet nur die letzten Tage - die Popups kennen alle 90.
+  const grenze = isoDaysAgo(incidentDays);
+
   return {
     services,
-    incidents: (incidentsRes.data ?? []).map(toIncident),
+    incidents: alleVorfaelle.filter((i) => i.started_at >= grenze),
     last_checked_at: lastCheckRes.data?.[0]?.checked_at ?? null,
     demo: false,
   };

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TagPopup } from "./tag-popup";
 import { formatUptime, uptimeColor } from "@/lib/uptime";
 import type { CalendarMonth } from "@/lib/calendar";
 import type { Service } from "@/lib/types";
@@ -59,26 +60,26 @@ export function UptimeCalendar({
                 cell === null ? (
                   <div key={`leer-${i}`} className="aspect-square" />
                 ) : cell.future ? (
-                  <div key={cell.day} className="aspect-square" />
+                  <div key={cell.tag.day} className="aspect-square" />
                 ) : (
-                  <Tooltip key={cell.day}>
+                  <Tooltip key={cell.tag.day}>
                     <TooltipTrigger asChild>
                       <div
                         tabIndex={0}
-                        className="aspect-square outline-none focus-visible:ring-2 focus-visible:ring-[var(--sp-ink)]"
+                        className="aspect-square outline-none transition-colors hover:brightness-75 focus-visible:ring-2 focus-visible:ring-[var(--sp-ink)]"
                         style={{
                           backgroundColor:
-                            cell.uptime === null ? KEINE_DATEN : uptimeColor(cell.uptime),
+                            cell.tag.uptime === null ? KEINE_DATEN : uptimeColor(cell.tag.uptime),
                         }}
                       />
                     </TooltipTrigger>
-                    <TooltipContent className="sp-tooltip flex-col items-start gap-0 border-0">
-                      <div className="font-medium">{tagText(cell.day)}</div>
-                      <div>
-                        {cell.uptime === null
-                          ? "Keine Messdaten"
-                          : `${formatUptime(cell.uptime)} Verfügbarkeit`}
-                      </div>
+                    <TooltipContent
+                      className="sp-popup"
+                      arrowClassName="sp-popup-arrow"
+                      sideOffset={6}
+                      collisionPadding={12}
+                    >
+                      <TagPopup tag={cell.tag} />
                     </TooltipContent>
                   </Tooltip>
                 ),
@@ -89,14 +90,4 @@ export function UptimeCalendar({
       </div>
     </>
   );
-}
-
-function tagText(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("de-AT", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
 }

@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   const { data } = await db
     .from("subscribers")
-    .update({ confirmed: true })
+    .update({ confirmed: true, confirmed_at: new Date().toISOString() })
     .eq("token", token)
     .select("email")
     .maybeSingle();

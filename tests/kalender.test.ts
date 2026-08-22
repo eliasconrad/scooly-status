@@ -22,18 +22,18 @@ test("zurückblättern springt sauber über den Jahreswechsel", () => {
 test("die Woche beginnt am Montag", () => {
   // 1. Juni 2026 ist ein Montag - kein Platzhalter davor.
   const juni = buildMonth({ year: 2026, month: 5 }, new Map(), AM);
-  assert.equal(juni.cells[0]?.day, "2026-06-01");
+  assert.equal(juni.cells[0]?.tag.day, "2026-06-01");
 
   // 1. Juli 2026 ist ein Mittwoch - zwei Platzhalter.
   const juli = buildMonth({ year: 2026, month: 6 }, new Map(), AM);
   assert.equal(juli.cells[0], null);
   assert.equal(juli.cells[1], null);
-  assert.equal(juli.cells[2]?.day, "2026-07-01");
+  assert.equal(juli.cells[2]?.tag.day, "2026-07-01");
 
   // 1. August 2026 ist ein Samstag - fünf Platzhalter.
   const august = buildMonth({ year: 2026, month: 7 }, new Map(), AM);
   assert.equal(august.cells.filter((c) => c === null).length, 5);
-  assert.equal(august.cells[5]?.day, "2026-08-01");
+  assert.equal(august.cells[5]?.tag.day, "2026-08-01");
 });
 
 test("Monatslängen stimmen, auch im Schaltjahr", () => {
@@ -47,8 +47,8 @@ test("Monatslängen stimmen, auch im Schaltjahr", () => {
 
 test("Tage in der Zukunft sind als solche gekennzeichnet", () => {
   const august = buildMonth({ year: 2026, month: 7 }, new Map(), AM);
-  const heute = august.cells.find((c) => c?.day === "2026-08-22");
-  const morgen = august.cells.find((c) => c?.day === "2026-08-23");
+  const heute = august.cells.find((c) => c?.tag.day === "2026-08-22");
+  const morgen = august.cells.find((c) => c?.tag.day === "2026-08-23");
   assert.equal(heute?.future, false, "der heutige Tag zählt noch mit");
   assert.equal(morgen?.future, true);
 });
@@ -56,13 +56,13 @@ test("Tage in der Zukunft sind als solche gekennzeichnet", () => {
 test("ein Monat ohne Messdaten hat keine Verfügbarkeit - keine 100 Prozent", () => {
   const m = buildMonth({ year: 2026, month: 5 }, new Map(), AM);
   assert.equal(m.uptime, null);
-  assert.ok(m.cells.every((c) => c === null || c.uptime === null));
+  assert.ok(m.cells.every((c) => c === null || c.tag.uptime === null));
 });
 
 test("die Monatsverfügbarkeit rechnet nur mit gemessenen Tagen", () => {
   const daten = new Map<string, UptimeDay>([
-    ["2026-06-01", { day: "2026-06-01", uptime: 1, checks: 288, downtime_minutes: 0 }],
-    ["2026-06-02", { day: "2026-06-02", uptime: 0.5, checks: 288, downtime_minutes: 720 }],
+    ["2026-06-01", { day: "2026-06-01", uptime: 1, checks: 288, downtime_minutes: 0, degraded_minutes: 0, incidents: [] }],
+    ["2026-06-02", { day: "2026-06-02", uptime: 0.5, checks: 288, downtime_minutes: 720, degraded_minutes: 0, incidents: [] }],
   ]);
   const m = buildMonth({ year: 2026, month: 5 }, daten, AM);
   assert.equal(m.uptime, 0.75, "zwei gemessene Tage, nicht dreißig");

@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { overallUptime } from "./uptime";
-import type { Service, UptimeDay } from "./types";
+import { incidentsByDay } from "./vorfaelle";
+import type { Incident, RelatedIncident, Service, UptimeDay } from "./types";
 
 /** Ein Blatt zeigt drei Monate - wie beim Original. */
 export const MONTHS_PER_PAGE = 3;
@@ -36,7 +37,7 @@ export function pageLabel(months: MonthRef[]): string {
   return `${monthName(months[0])} bis ${monthName(months[months.length - 1])}`;
 }
 
-export type CalendarCell = { day: string; uptime: number | null; future: boolean } | null;
+export type CalendarCell = { tag: UptimeDay; future: boolean } | null;
 
 export type CalendarMonth = {
   ref: MonthRef;
@@ -50,7 +51,13 @@ export type CalendarMonth = {
  * Baut ein Monatsgitter. Anders als beim Original beginnt die Woche am
  * Montag - eine deutsche Seite mit Sonntag-Start wäre schlicht falsch.
  */
-export function buildMonth(ref: MonthRef, byDay: Map<string, UptimeDay>, today = new Date()): CalendarMonth {
+export function buildMonth(
+  ref: MonthRef,
+  byDay: Map<string, UptimeDay>,
+  today = new Date(),
+  vorfaelleProTag: Map<string, RelatedIncident[]> = new Map(),
+  slug = "",
+): CalendarMonth {
   const first = new Date(Date.UTC(ref.year, ref.month, 1));
   const daysInMonth = new Date(Date.UTC(ref.year, ref.month + 1, 0)).getUTCDate();
 
@@ -65,7 +72,18 @@ export function buildMonth(ref: MonthRef, byDay: Map<string, UptimeDay>, today =
     const iso = `${ref.year}-${String(ref.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     const row = byDay.get(iso);
     if (row) measured.push(row);
-    cells.push({ day: iso, uptime: row?.uptime ?? null, future: iso > todayIso });
+    const tag: UptimeDay = row ?? {
+      day: iso,
+      uptime: null,
+      checks: 0,
+      downtime_minutes: 0,
+      degraded_minutes: 0,
+      incidents: [],
+    };
+    cells.push({
+      tag: { ...tag, incidents: vorfaelleProTag.get(`${slug}:${iso}`) ?? tag.incidents },
+      future: iso > todayIso,
+    });
   }
 
   return { ref, label: monthName(ref), uptime: overallUptime(measured), cells };
@@ -98,10 +116,11 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
     const byDay = new Map<string, UptimeDay>(
       (data.services.find((s) => s.service.slug === selected.slug)?.days ?? []).map((d) => [d.day, d]),
     );
+    const proTag = incidentsByDay(data.incidents);
     return {
       services,
       selected,
-      months: months.map((m) => buildMonth(m, byDay)),
+      months: months.map((m) => buildMonth(m, byDay, new Date(), proTag, selected.slug)),
       page,
       demo: true,
     };
@@ -138,6 +157,26 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
     .gte("day", from)
     .lte("day", to);
 
+  const { data: incidentRows } = await db
+    .from("incidents")
+    .select("id, title, impact, started_at, resolved_at, service_slugs")
+    .lte("started_at", `${to}T23:59:59.999Z`)
+    .or(`resolved_at.is.null,resolved_at.gte.${from}T00:00:00.000Z`);
+
+  const proTag = incidentsByDay(
+    (incidentRows ?? []).map((row) => ({
+      id: String(row.id),
+      title: String(row.title),
+      impact: row.impact as Incident["impact"],
+      status: "resolved" as const,
+      started_at: String(row.started_at),
+      resolved_at: (row.resolved_at as string | null) ?? null,
+      automatic: false,
+      service_slugs: (row.service_slugs as string[]) ?? [],
+      updates: [],
+    })),
+  );
+
   const byDay = new Map<string, UptimeDay>(
     (uptimeRows ?? []).map((row) => [
       row.day as string,
@@ -146,9 +185,17 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
         uptime: row.uptime === null ? null : Number(row.uptime),
         checks: Number(row.checks ?? 0),
         downtime_minutes: Number(row.downtime_minutes ?? 0),
+        degraded_minutes: Number(row.degraded_minutes ?? 0),
+        incidents: [],
       },
     ]),
   );
 
-  return { services, selected, months: months.map((m) => buildMonth(m, byDay)), page, demo: false };
+  return {
+    services,
+    selected,
+    months: months.map((m) => buildMonth(m, byDay, new Date(), proTag, selected.slug)),
+    page,
+    demo: false,
+  };
 }

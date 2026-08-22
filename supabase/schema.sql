@@ -47,7 +47,8 @@ create table if not exists daily_uptime (
   failed           integer not null default 0,
   degraded         integer not null default 0,
   uptime           numeric(9,6) not null default 1,
-  downtime_minutes integer not null default 0,
+  downtime_minutes integer not null default 0,   -- Minuten ohne Antwort
+  degraded_minutes integer not null default 0,   -- Minuten über dem Grenzwert
   primary key (service_slug, day)
 );
 
@@ -81,11 +82,13 @@ create index if not exists incident_updates_incident_idx on incident_updates (in
 -- Abonnenten
 -- --------------------------------------------------------------------------
 create table if not exists subscribers (
-  id         uuid primary key default gen_random_uuid(),
-  email      text unique not null,
-  token      text not null,
-  confirmed  boolean not null default false,
-  created_at timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  email          text unique not null,
+  token          text not null,             -- Bestätigungsschlüssel
+  unsubscribe    text not null,             -- Abmeldeschlüssel, bleibt gültig
+  confirmed      boolean not null default false,
+  created_at     timestamptz not null default now(),
+  confirmed_at   timestamptz
 );
 
 -- --------------------------------------------------------------------------
@@ -100,6 +103,22 @@ alter table incident_updates enable row level security;
 alter table subscribers      enable row level security;
 
 -- --------------------------------------------------------------------------
+-- Rechte
+--
+-- Der Server liest ausschließlich mit dem Service-Role-Key. Diese Rechte
+-- stehen hier ausdrücklich, damit es egal ist, wie im Supabase-Dashboard
+-- der Haken "Automatically expose new tables" gesetzt ist.
+-- anon und authenticated bekommen bewusst gar nichts.
+-- --------------------------------------------------------------------------
+grant usage on schema public to service_role;
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+
+revoke all on all tables in schema public from anon, authenticated;
+
+-- --------------------------------------------------------------------------
 -- Aufräumen: Rohmessungen älter als 120 Tage brauchen wir nicht mehr,
 -- die Tagesbilanz bleibt.
 -- --------------------------------------------------------------------------
@@ -111,10 +130,10 @@ $$;
 -- Startbelegung der Dienste. URLs anpassen!
 -- --------------------------------------------------------------------------
 insert into services (slug, name, probe_url, degraded_ms, sort_order) values
-  ('scooly-web',         'Scooly (scooly.at)',           'https://scooly.at',                      2500,  1),
-  ('scooly-anmeldung',   'Anmeldung & Konten',            'https://scooly.at/api/health/auth',      2500,  2),
-  ('scooly-app',         'Scooly App (iPhone & iPad)',    'https://scooly.at/api/health/app',       3000,  3),
-  ('scooly-ki',          'Aufgaben, Quiz & Karteikarten', 'https://scooly.at/api/health/ki',       12000,  4),
-  ('scooly-handschrift', 'Handschrift-Erkennung',         'https://scooly.at/api/health/ocr',      15000,  5),
-  ('scooly-daten',       'Datenbank & Dateien',           'https://scooly.at/api/health/db',        2000,  6)
+  ('scooly-web',         'Scooly (scooly.dev)',           'https://scooly.dev',                     2500,  1),
+  ('scooly-anmeldung',   'Anmeldung & Konten',            'https://scooly.dev/api/health/auth',      2500,  2),
+  ('scooly-app',         'Scooly App (iPhone & iPad)',    'https://scooly.dev/api/health/app',       3000,  3),
+  ('scooly-ki',          'Aufgaben, Quiz & Karteikarten', 'https://scooly.dev/api/health/ki',       12000,  4),
+  ('scooly-handschrift', 'Handschrift-Erkennung',         'https://scooly.dev/api/health/ocr',      15000,  5),
+  ('scooly-daten',       'Datenbank & Dateien',           'https://scooly.dev/api/health/db',        2000,  6)
 on conflict (slug) do nothing;

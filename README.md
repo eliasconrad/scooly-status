@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 69 Tests
+Prüfen: npm test        → 89 Tests
 ```
 
 ## Seiten und wie sie zusammenhängen
@@ -28,7 +28,7 @@ Genauso verdrahtet wie beim Original:
 /uptime               Monatskalender, ein Feld je Tag, Dienst über Auswahlfeld (?dienst=…)
 /history              Vorfälle nach Monaten, je Vorfall die jüngste Meldung
                       + "Alle N Vorfälle anzeigen", wenn ein Monat mehr als drei hat
-/abo                  Rückmeldung nach dem Bestätigungslink aus der E-Mail
+/abo                  Rückmeldung nach Bestätigung oder Abmeldung
 /history.atom
 /history.rss          Feeds, wie sie das Original im <head> verlinkt
 ```
@@ -72,6 +72,43 @@ Vorfälle, die kein Ping sehen kann ("Karteikarten sind gerade inhaltlich schlec
 man von Hand in `incidents` + `incident_updates` ein. `automatic = false` setzen, dann fasst
 der Wächter sie nicht an.
 
+## Popups an den Balken
+
+Jeder Tagesbalken - in der 90-Tage-Leiste wie im Monatskalender - hat ein Popup mit
+Datum, aufgezeichneter Ausfalldauer und den Vorfällen dieses Tages. Maße am Original
+abgenommen: Kasten 325 breit, 15 Innenabstand, 1px Rahmen, 3px Radius,
+Schatten `0 3px 6px rgba(0,0,0,.15)`.
+
+Das Popup unterscheidet drei Fälle, und das ist wichtiger als es aussieht:
+
+- **keine Messdaten** → „Für diesen Tag liegen keine Messdaten vor."
+- **gemessen, nichts passiert** → „An diesem Tag wurde kein Ausfall aufgezeichnet."
+- **Ausfall** → Feld mit Dauer, getrennt nach *Ausfall* (keine Antwort) und
+  *Beeinträchtigt* (Antwort über dem Grenzwert)
+
+Ein Tag ohne Messung sagt also nicht, es sei nichts passiert.
+
+## Newsletter
+
+Läuft über **Resend**. Ablauf: eintragen → Bestätigungsmail → erst nach Klick auf den
+Link steht die Adresse auf `confirmed` und bekommt Meldungen.
+
+Ohne `RESEND_API_KEY` lehnt das Formular offen ab, statt eine Mail zu versprechen, die
+nie ankommt.
+
+Jede Meldung trägt einen persönlichen Abmeldelink und die Kopfzeilen
+`List-Unsubscribe` / `List-Unsubscribe-Post`, damit die Ein-Klick-Abmeldung in Gmail
+und Outlook funktioniert. Die Abmeldung **löscht** die Adresse, sie merkt sie sich nicht.
+
+Vor dem Scharfschalten in Resend nötig:
+
+1. Domain `scooly.dev` als Absenderdomain anlegen
+2. Die von Resend gezeigten **SPF-, DKIM- und DMARC-Einträge** im DNS setzen
+3. Warten, bis Resend die Domain als verifiziert führt
+4. `RESEND_API_KEY` und `RESEND_FROM` in den Vercel-Umgebungsvariablen setzen
+
+Ohne verifizierte Domain landen die Mails im Spam oder werden abgewiesen.
+
 ## Was geprüft ist - und was nicht
 
 `npm test` fährt 69 Tests. Die Tests wurden gegengeprüft, indem absichtlich Fehler
@@ -81,6 +118,8 @@ Abschneiden, Gewichtung entfernt) - jeder davon wurde gefangen.
 | Bereich | Wie geprüft |
 |---|---|
 | `probe()` | Gegen einen **echten HTTP-Server**: 200, 204, Umleitung, 500, 403, 404, langsame Antwort, hängende Verbindung, abgebrochene Verbindung, toter Port. Keine Attrappe der `fetch`-Funktion. |
+| Mailversand | Gegen einen **echten HTTP-Server**, der sich als Resend ausgibt: Kopfzeilen, eine Anfrage je Adresse, persönlicher Abmeldelink, `List-Unsubscribe`, Verhalten bei Fehlern |
+| Popups | Zuordnung Vorfall → Tag → Dienst, Mitternachtsüberläufe, offene Vorfälle, kaputte Zeitangaben |
 | Entscheidungslogik (`bewerte`) | 16 Fälle: Serien, Unterbrechungen, Verschärfung, Schließen, zu wenig Messungen |
 | Rechenwege | Gewichtung, Abschneiden, Farbskala, Balkengeometrie, schlechtester Status |
 | Kalender | Monatsanfänge, Schaltjahr, Jahreswechsel beim Blättern, Zukunftstage |
@@ -114,13 +153,13 @@ Entscheidungslogik dahinter ist durch die Tests abgedeckt.
 1. **Eigenes Supabase-Projekt anlegen** (nicht das von Scooly!) und
    `supabase/schema.sql` im SQL-Editor ausführen.
 2. `.env.example` nach `.env.local` kopieren und ausfüllen.
-3. Bei Vercel deployen, Domain `status.scooly.at` verbinden.
+3. Bei Vercel deployen, Domain `status.scooly.dev` verbinden.
 4. In den GitHub-Secrets `CRON_SECRET` und `STATUS_URL` hinterlegen -
    dann läuft `.github/workflows/waechter.yml` von selbst.
 
 ### Noch offen: die Health-Endpunkte in Scooly
 
-Die Seed-Daten in `supabase/schema.sql` zeigen auf `https://scooly.at/api/health/*`.
+Die Seed-Daten in `supabase/schema.sql` zeigen auf `https://scooly.dev/api/health/*`.
 **Diese Endpunkte gibt es in ScoolyAi noch nicht** - solange sie fehlen, meldet der Wächter
 alles außer der Startseite als Ausfall. Pro Dienst reicht eine kleine Route, die genau das
 prüft, wofür der Dienst steht:
@@ -156,6 +195,12 @@ im Stack exakt 220,84 px breit. Was man dort sieht, ist also **Helvetica Neue**.
 
 Deshalb steht hier derselbe Stack statt eines Ersatz-Webfonts. Das ist nicht "so ähnlich",
 das ist dieselbe Darstellung - und ganz ohne Schrift-Download.
+
+## Favicon
+
+`src/app/icon.svg` - das kleine `s` aus dem `scooly`-Schriftzug, auf drei Querbalken und
+zwei Verbinder heruntergebrochen. Kantig, keine Rundungen. Dieselbe Zeichnung sitzt als
+Kachel in der Kopfzeile, damit Reiter und Seite zusammenpassen.
 
 ## Stack
 

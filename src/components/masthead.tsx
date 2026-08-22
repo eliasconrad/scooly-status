@@ -19,14 +19,21 @@ export function Masthead() {
   );
 }
 
+/**
+ * Das kleine s aus dem scooly-Schriftzug als Kachel - dieselbe Zeichnung
+ * wie das Favicon, damit Reiter und Kopfzeile zusammenpassen.
+ */
 function ScoolyMark() {
   return (
-    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" aria-hidden>
-      <rect x="4" y="4" width="56" height="56" fill="#f5f1e8" />
-      <path d="M18 22H46" stroke="#141413" strokeWidth="4" />
-      <path d="M18 32H37" stroke="#141413" strokeWidth="4" />
-      <path d="M18 42H42" stroke="#141413" strokeWidth="4" />
-      <path d="M12 12H52V52H12V12Z" stroke="#141413" strokeWidth="3" />
+    <svg width="48" height="48" viewBox="0 0 32 32" aria-hidden>
+      <rect width="32" height="32" fill="#141413" />
+      <g fill="#f5f1e8">
+        <rect x="6" y="4.5" width="20" height="5" />
+        <rect x="6" y="9.5" width="5" height="4" />
+        <rect x="6" y="13.5" width="20" height="5" />
+        <rect x="21" y="18.5" width="5" height="4" />
+        <rect x="6" y="22.5" width="20" height="5" />
+      </g>
     </svg>
   );
 }

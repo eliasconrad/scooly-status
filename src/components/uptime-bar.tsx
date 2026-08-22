@@ -1,6 +1,7 @@
 "use client";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TagPopup } from "./tag-popup";
 import { BAR, formatUptime, uptimeColor } from "@/lib/uptime";
 import type { UptimeDay } from "@/lib/types";
 
@@ -26,23 +27,22 @@ export function UptimeBar({ days, uptime90 }: { days: UptimeDay[]; uptime90: num
           <Tooltip key={day.day}>
             <TooltipTrigger asChild>
               <rect
+                tabIndex={0}
                 x={i * BAR.pitch}
                 y={0}
                 width={BAR.width}
                 height={BAR.viewBoxHeight}
                 fill={uptimeColor(day.uptime)}
-                className="cursor-default"
+                className="sp-tag cursor-default outline-none"
               />
             </TooltipTrigger>
-            <TooltipContent className="sp-tooltip flex-col items-start gap-0 border-0">
-              <div className="font-medium">{germanDate(day.day)}</div>
-              <div>
-                {day.uptime === null
-                  ? "Keine Messdaten"
-                  : day.downtime_minutes === 0
-                    ? "Keine Ausfälle"
-                    : `${day.downtime_minutes} Min. Ausfall · ${formatUptime(day.uptime)}`}
-              </div>
+            <TooltipContent
+              className="sp-popup"
+              arrowClassName="sp-popup-arrow"
+              sideOffset={6}
+              collisionPadding={12}
+            >
+              <TagPopup tag={day} />
             </TooltipContent>
           </Tooltip>
         ))}
@@ -57,14 +57,4 @@ export function UptimeBar({ days, uptime90 }: { days: UptimeDay[]; uptime90: num
       </div>
     </div>
   );
-}
-
-function germanDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("de-AT", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
 }

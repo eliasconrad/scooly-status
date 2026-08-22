@@ -1,6 +1,7 @@
 import { DEFAULT_SERVICES } from "./services";
 import { overallUptime } from "./uptime";
-import type { Incident, StatusPageData, UptimeDay } from "./types";
+import { incidentsByDay } from "./vorfaelle";
+import type { Incident, RelatedIncident, StatusPageData, UptimeDay } from "./types";
 
 /**
  * Demodaten für die lokale Entwicklung, solange keine Datenbank hängt.
@@ -31,18 +32,27 @@ export function lastNDays(n: number, today = new Date()): string[] {
   return out;
 }
 
-function demoDays(slug: string, days: string[]): UptimeDay[] {
+function demoDays(slug: string, days: string[], proTag: Map<string, RelatedIncident[]>): UptimeDay[] {
   return days.map((day) => {
     const r = hash(`${slug}:${day}`);
     let uptime = 1;
+    let anteilAusfall = 1; // wie viel davon war echter Ausfall statt nur zäh
     if (r > 0.93) uptime = 0.94 + hash(`a${slug}${day}`) * 0.05;
-    else if (r > 0.84) uptime = 0.985 + hash(`b${slug}${day}`) * 0.012;
-    else if (r > 0.7) uptime = 0.9975 + hash(`c${slug}${day}`) * 0.0024;
+    else if (r > 0.84) {
+      uptime = 0.985 + hash(`b${slug}${day}`) * 0.012;
+      anteilAusfall = 0;
+    } else if (r > 0.7) {
+      uptime = 0.9975 + hash(`c${slug}${day}`) * 0.0024;
+      anteilAusfall = 0;
+    }
+    const fehlminuten = Math.round((1 - uptime) * 24 * 60);
     return {
       day,
       uptime,
       checks: 288,
-      downtime_minutes: Math.round((1 - uptime) * 24 * 60),
+      downtime_minutes: Math.round(fehlminuten * anteilAusfall),
+      degraded_minutes: Math.round(fehlminuten * (1 - anteilAusfall) * 2),
+      incidents: proTag.get(`${slug}:${day}`) ?? [],
     };
   });
 }
@@ -113,9 +123,10 @@ function daysAgo(days: number, hour: number, minute: number): string {
 
 export function demoData(): StatusPageData {
   const days = lastNDays(90);
+  const proTag = incidentsByDay(DEMO_INCIDENTS);
   return {
     services: DEFAULT_SERVICES.map((service) => {
-      const d = demoDays(service.slug, days);
+      const d = demoDays(service.slug, days, proTag);
       return {
         service,
         status: "operational" as const,

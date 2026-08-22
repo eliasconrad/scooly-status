@@ -2,7 +2,7 @@ import { getIncidentHistory } from "./status";
 import { INCIDENT_STATUS_LABEL } from "./uptime";
 import type { Incident } from "./types";
 
-const BASIS = process.env.PUBLIC_URL ?? "https://status.scooly.at";
+const BASIS = process.env.PUBLIC_URL ?? "https://status.scooly.dev";
 
 function escape(s: string): string {
   return s

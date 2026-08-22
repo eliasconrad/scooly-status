@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { sendeBestaetigung, versandEingerichtet } from "@/lib/mail";
 import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   // erneutes Eintragen einer fremden Adresse deren Abo stilllegen.
   const { data: vorhanden } = await db
     .from("subscribers")
-    .select("confirmed")
+    .select("confirmed, unsubscribe")
     .eq("email", email)
     .maybeSingle();
 
@@ -35,43 +36,39 @@ export async function POST(request: Request) {
   }
 
   const token = randomUUID();
-  const { error } = await db
-    .from("subscribers")
-    .upsert({ email, token, confirmed: false }, { onConflict: "email" });
+  const { error } = await db.from("subscribers").upsert(
+    {
+      email,
+      token,
+      unsubscribe: (vorhanden?.unsubscribe as string | undefined) ?? randomUUID(),
+      confirmed: false,
+    },
+    { onConflict: "email" },
+  );
 
   if (error) {
     console.error("[abo] Eintrag fehlgeschlagen:", error);
     return NextResponse.json({ error: "Das hat nicht geklappt." }, { status: 500 });
   }
 
-  const base = process.env.PUBLIC_URL ?? "https://status.scooly.at";
-  const link = `${base}/api/confirm?token=${token}`;
-  const sent = await sendConfirmation(email, link);
+  // Ohne eingerichteten Versand nichts versprechen, was nicht passiert.
+  if (!versandEingerichtet()) {
+    console.warn("[abo] RESEND_API_KEY fehlt - es wurde keine Bestätigungsmail verschickt.");
+    return NextResponse.json(
+      { error: "Der Mailversand ist noch nicht eingerichtet. Bitte später noch einmal." },
+      { status: 503 },
+    );
+  }
+
+  const verschickt = await sendeBestaetigung(email, token);
+  if (!verschickt) {
+    return NextResponse.json(
+      { error: "Die Bestätigungsmail ließ sich nicht verschicken. Bitte später noch einmal." },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({
-    message: sent
-      ? "Fast geschafft - bestätige die E-Mail in deinem Postfach."
-      : "Eingetragen. Die Bestätigungsmail kommt, sobald der Versand eingerichtet ist.",
+    message: "Fast geschafft - bestätige die Mail in deinem Postfach.",
   });
-}
-
-async function sendConfirmation(email: string, link: string): Promise<boolean> {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return false;
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM ?? "Scooly Status <status@scooly.at>",
-        to: email,
-        subject: "Scooly Status: Abo bestätigen",
-        text: `Bestätige dein Abo für Störungsmeldungen von Scooly:\n\n${link}\n\nWenn du das nicht warst, ignoriere diese E-Mail einfach.`,
-      }),
-      signal: AbortSignal.timeout(10000),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
 }
