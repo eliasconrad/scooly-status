@@ -149,3 +149,47 @@ function toIncident(row: Row): Incident {
     updates,
   };
 }
+
+/**
+ * Vorfälle für ein Quartalsblatt, nach Monaten gruppiert.
+ * Zeigt /history - dort steht pro Vorfall nur die jüngste Meldung.
+ */
+export async function getIncidentsForMonths(
+  months: { year: number; month: number }[],
+): Promise<Map<string, Incident[]>> {
+  const first = months[0];
+  const last = months[months.length - 1];
+  const from = new Date(Date.UTC(first.year, first.month, 1)).toISOString();
+  const to = new Date(Date.UTC(last.year, last.month + 1, 0, 23, 59, 59)).toISOString();
+
+  const db = supabase();
+  let all: Incident[];
+
+  if (!db) {
+    if (!demoAllowed()) throw new Error("Keine Datenbank angebunden.");
+    const { demoData } = await import("./demo");
+    all = demoData().incidents;
+  } else {
+    const { data, error } = await db
+      .from("incidents")
+      .select("*, incident_updates(*)")
+      .gte("started_at", from)
+      .lte("started_at", to)
+      .order("started_at", { ascending: false });
+    if (error) throw error;
+    all = (data ?? []).map(toIncident);
+  }
+
+  const grouped = new Map<string, Incident[]>();
+  for (const m of months) {
+    const key = `${m.year}-${m.month}`;
+    grouped.set(
+      key,
+      all.filter((i) => {
+        const d = new Date(i.started_at);
+        return d.getUTCFullYear() === m.year && d.getUTCMonth() === m.month;
+      }),
+    );
+  }
+  return grouped;
+}

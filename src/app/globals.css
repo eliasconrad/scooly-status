@@ -155,7 +155,10 @@ body {
 }
 
 body {
-  font-family: var(--font-sans);
+  /* Exakt der Stack der Originalseite. Atlassian Sans ist dort weder
+     installiert noch als Webfont eingebunden - gerendert wird in Wahrheit
+     Helvetica Neue. Dieselbe Kette heißt: dieselbe Darstellung. */
+  font-family: "Atlassian Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 16px;
   line-height: 24px;
   -webkit-font-smoothing: antialiased;

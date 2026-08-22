@@ -12,6 +12,31 @@ Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
 ```
 
+## Seiten und wie sie zusammenhängen
+
+Genauso verdrahtet wie beim Original:
+
+```
+/                    aktueller Status, 90-Tage-Leisten, Vorfälle der letzten 15 Tage
+  │  "Vollständige Verfügbarkeit ansehen."  →  /uptime
+  └  Fußzeile "← Verlauf der Vorfälle"      →  /history
+
+/history  ⇄  /uptime      über die Reiter  Vorfälle | Verfügbarkeit
+  beide: Quartals-Blätterung (?seite=2 …), Fußzeile "← Zum aktuellen Status"
+
+/uptime               Monatskalender, ein Feld je Tag, Dienst über Auswahlfeld (?dienst=…)
+/history              Vorfälle nach Monaten, je Vorfall die jüngste Meldung
+                      + "Alle N Vorfälle anzeigen", wenn ein Monat mehr als drei hat
+/abo                  Rückmeldung nach dem Bestätigungslink aus der E-Mail
+/history.atom
+/history.rss          Feeds, wie sie das Original im <head> verlinkt
+```
+
+Gemessene Werte der Unterseiten: Reiterleiste 42 px mit Haarlinie und 32 px Abstand,
+Monatsblock 260 × 260 mit 35 px Spalten- und 32 px Zeilenabstand, Tagesfeld 32 × 32 im
+Raster 38 × 38,5, Blätterpfeile 34 × 34 mit 4 px Radius, Monatsüberschrift im Verlauf
+28 px/500 mit 4 px Innenabstand und 20 px Luft darunter.
+
 Ohne Datenbank läuft die Seite lokal mit Demodaten. In der Produktion zeigt sie stattdessen
 offen "Status derzeit nicht abrufbar" - ein grünes Banner ohne Messgrundlage wäre schlimmer
 als gar keine Seite.
@@ -77,11 +102,22 @@ immer 200 zurückgibt, macht die ganze Status-Page wertlos.
 
 | | Original | Hier |
 |---|---|---|
-| Schrift | Atlassian Sans (lizenziert) | Inter Variable, self-hosted - nächstliegender freier Ersatz |
 | Wortmarke | "Claude Status" als Grafik | Scooly-Marke + Schriftzug |
 | Sprache | Englisch | Deutsch |
 | Statusband | Zeitstempelzeile bleibt leer | zeigt "Zuletzt geprüft vor X Minuten" (Band dadurch 8 px höher) |
+| Kalenderwoche | beginnt Sonntag | beginnt Montag |
 | Balkenfarben | Originalformel unbekannt | aus den gerenderten `fill`-Werten rekonstruiert, siehe `src/lib/uptime.ts` |
+
+### Zur Schrift
+
+Die Originalseite lädt **keine eigene Schrift**. Ihr Stack ist
+`"Atlassian Sans", "Helvetica Neue", Helvetica, Arial, sans-serif`, und Atlassian Sans ist
+weder installiert noch als `@font-face` eingebunden - der einzige geladene Webfont ist
+FontAwesome für die Statussymbole. Gemessen: derselbe Text ist mit und ohne Atlassian Sans
+im Stack exakt 220,84 px breit. Was man dort sieht, ist also **Helvetica Neue**.
+
+Deshalb steht hier derselbe Stack statt eines Ersatz-Webfonts. Das ist nicht "so ähnlich",
+das ist dieselbe Darstellung - und ganz ohne Schrift-Download.
 
 ## Stack
 

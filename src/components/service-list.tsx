@@ -11,8 +11,8 @@ export function ServiceList({ services }: { services: ServiceStatus[] }) {
     <section>
       <p className="mb-px text-right text-[14px] leading-6 text-[var(--sp-muted)]">
         Verfügbarkeit der letzten 90 Tage.{" "}
-        <a href="/history" className="text-[var(--sp-ink)] underline-offset-2 hover:underline">
-          Vollständigen Verlauf ansehen.
+        <a href="/uptime" className="text-[var(--sp-ink)] underline-offset-2 hover:underline">
+          Vollständige Verfügbarkeit ansehen.
         </a>
       </p>
 

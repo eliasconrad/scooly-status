@@ -1,38 +1,52 @@
 import { DataError } from "@/components/data-error";
+import { HistoryNav } from "@/components/history-nav";
+import { IncidentMonth } from "@/components/incident-month";
 import { Masthead } from "@/components/masthead";
-import { PastIncidents } from "@/components/past-incidents";
+import { QuarterPagination } from "@/components/quarter-pagination";
 import { SiteFooter } from "@/components/site-footer";
-import { lastNDays } from "@/lib/demo";
-import { getIncidentHistory } from "@/lib/status";
+import { monthName, monthsForPage, pageLabel } from "@/lib/calendar";
+import { getIncidentsForMonths } from "@/lib/status";
 import type { Incident } from "@/lib/types";
 
-export const revalidate = 300;
+export const metadata = { title: "Vorfälle · Scooly Status" };
 
-export const metadata = { title: "Verlauf · Scooly Status" };
+export default async function HistoryPage(props: PageProps<"/history">) {
+  const params = await props.searchParams;
+  const page = Math.max(1, Number(params.seite ?? 1) || 1);
+  const months = monthsForPage(page);
 
-export default async function HistoryPage() {
-  let incidents: Incident[] | null = null;
-  let failure: string | null = null;
-
+  let grouped: Map<string, Incident[]> | null = null;
+  let fehler: string | null = null;
   try {
-    incidents = await getIncidentHistory(3);
+    grouped = await getIncidentsForMonths(months);
   } catch (err) {
-    failure = err instanceof Error ? err.message : "Unbekannter Fehler";
+    fehler = err instanceof Error ? err.message : "Unbekannter Fehler";
   }
 
   return (
     <>
       <Masthead />
-      {incidents ? (
-        <PastIncidents
-          incidents={incidents}
-          days={lastNDays(90).reverse()}
-          heading="Verlauf der Vorfälle"
-        />
+      <HistoryNav current="vorfaelle" />
+
+      {grouped ? (
+        <>
+          <div className="mb-[32px] flex justify-end">
+            <QuarterPagination basePath="/history" page={page} label={pageLabel(months)} />
+          </div>
+
+          {[...months].reverse().map((m) => (
+            <IncidentMonth
+              key={`${m.year}-${m.month}`}
+              label={monthName(m)}
+              incidents={grouped.get(`${m.year}-${m.month}`) ?? []}
+            />
+          ))}
+        </>
       ) : (
-        <DataError detail={failure ?? ""} />
+        <DataError detail={fehler ?? ""} />
       )}
-      <SiteFooter back={{ href: "/", label: "Zurück zum Status" }} />
+
+      <SiteFooter back={{ href: "/", label: "Zum aktuellen Status" }} />
     </>
   );
 }

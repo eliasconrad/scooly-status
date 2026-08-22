@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "@fontsource-variable/inter";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SmoothScroll } from "@/components/smooth-scroll";
@@ -8,6 +7,12 @@ export const metadata: Metadata = {
   title: "Scooly Status",
   description: "Aktueller Betriebszustand von Scooly - App, Anmeldung, KI-Aufgaben und Datenbank.",
   robots: { index: true, follow: true },
+  alternates: {
+    types: {
+      "application/atom+xml": "/history.atom",
+      "application/rss+xml": "/history.rss",
+    },
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -15,7 +20,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="de" className="h-full antialiased">
       <body
         className="min-h-full"
-        style={{ fontFamily: "'Inter Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif" }}
       >
         <SmoothScroll />
         <TooltipProvider delayDuration={80}>

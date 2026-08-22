@@ -39,7 +39,7 @@ export default async function Page() {
       ) : (
         <DataError detail={failure ?? ""} />
       )}
-      <SiteFooter />
+      <SiteFooter back={{ href: "/history", label: "Verlauf der Vorfälle" }} />
     </>
   );
 }
