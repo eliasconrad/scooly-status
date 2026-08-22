@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scooly Status
 
-## Getting Started
+Nachbau von [status.claude.com](https://status.claude.com) - Layout, Abstände, Farben und
+Typo-Größen sind direkt aus der gerenderten Seite ausgemessen (22.08.2026). Das Original ist
+eine gemietete **Atlassian Statuspage**; deshalb sieht es bei vielen Firmen gleich aus.
 
-First, run the development server:
+Bewusst ein **eigenes Projekt mit eigenem Deployment**: Eine Status-Page, die auf derselben
+Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man sie braucht.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Start:  npm run dev     → http://localhost:3005
+Bauen:  npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ohne Datenbank läuft die Seite lokal mit Demodaten. In der Produktion zeigt sie stattdessen
+offen "Status derzeit nicht abrufbar" - ein grünes Banner ohne Messgrundlage wäre schlimmer
+als gar keine Seite.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Wie Störungen automatisch auftauchen
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+GitHub Action (alle 5 Min)
+        │
+        ▼
+GET /api/check  ──►  fetch() auf jede probe_url
+        │
+        ├── Messung in `checks`
+        ├── Tagesbilanz in `daily_uptime`  (zeichnet die 90-Tage-Leiste)
+        └── Bewertung:
+             3× hintereinander keine Antwort   → Vorfall "Größerer Ausfall" anlegen
+             3× hintereinander über Grenzwert  → Vorfall "Antwortet langsam" anlegen
+             aus langsam wird Ausfall          → Vorfall verschärfen
+             3× hintereinander sauber          → Vorfall automatisch schließen
+                     │
+                     └──► Telegram an Elias + E-Mail an Abonnenten
+```
 
-## Learn More
+Die Schwellen stehen oben in `src/lib/checker.ts` (`FAIL_STREAK`, `RECOVER_STREAK`).
+Drei Messungen à 5 Minuten heißt: eine echte Störung ist nach spätestens 15 Minuten auf
+der Seite, ein einzelner Schluckauf löst nichts aus.
 
-To learn more about Next.js, take a look at the following resources:
+**Der Wächter läuft bei GitHub, nicht bei Vercel.** Vercel Cron in `vercel.json` ist nur die
+Rückfallebene und im Hobby-Tarif ohnehin auf einen Lauf pro Tag begrenzt.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Vorfälle, die kein Ping sehen kann ("Karteikarten sind gerade inhaltlich schlecht"), trägt
+man von Hand in `incidents` + `incident_updates` ein. `automatic = false` setzen, dann fasst
+der Wächter sie nicht an.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Einrichten
 
-## Deploy on Vercel
+1. **Eigenes Supabase-Projekt anlegen** (nicht das von Scooly!) und
+   `supabase/schema.sql` im SQL-Editor ausführen.
+2. `.env.example` nach `.env.local` kopieren und ausfüllen.
+3. Bei Vercel deployen, Domain `status.scooly.at` verbinden.
+4. In den GitHub-Secrets `CRON_SECRET` und `STATUS_URL` hinterlegen -
+   dann läuft `.github/workflows/waechter.yml` von selbst.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Noch offen: die Health-Endpunkte in Scooly
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Die Seed-Daten in `supabase/schema.sql` zeigen auf `https://scooly.at/api/health/*`.
+**Diese Endpunkte gibt es in ScoolyAi noch nicht** - solange sie fehlen, meldet der Wächter
+alles außer der Startseite als Ausfall. Pro Dienst reicht eine kleine Route, die genau das
+prüft, wofür der Dienst steht:
+
+```ts
+// app/api/health/db/route.ts in ScoolyAi
+export async function GET() {
+  const { error } = await supabase.from("profiles").select("id").limit(1);
+  return Response.json({ ok: !error }, { status: error ? 503 : 200 });
+}
+```
+
+Wichtig: Ein Health-Endpunkt darf nur melden, was er wirklich geprüft hat. Eine Route, die
+immer 200 zurückgibt, macht die ganze Status-Page wertlos.
+
+## Was bewusst anders ist als beim Original
+
+| | Original | Hier |
+|---|---|---|
+| Schrift | Atlassian Sans (lizenziert) | Inter Variable, self-hosted - nächstliegender freier Ersatz |
+| Wortmarke | "Claude Status" als Grafik | Scooly-Marke + Schriftzug |
+| Sprache | Englisch | Deutsch |
+| Statusband | Zeitstempelzeile bleibt leer | zeigt "Zuletzt geprüft vor X Minuten" (Band dadurch 8 px höher) |
+| Balkenfarben | Originalformel unbekannt | aus den gerenderten `fill`-Werten rekonstruiert, siehe `src/lib/uptime.ts` |
+
+## Stack
+
+Next.js 16 · Tailwind 4 · shadcn/ui (Tooltip, Dialog) · motion · lenis · lucide-react ·
+@fontsource-variable/inter · Supabase

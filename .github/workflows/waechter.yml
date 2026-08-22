@@ -1,0 +1,26 @@
+name: Wächter
+
+# Alle fünf Minuten messen. Läuft bewusst bei GitHub und nicht bei Vercel:
+# Ein Wächter auf derselben Plattform wie das Überwachte schweigt genau dann,
+# wenn es darauf ankommt. Vercel Cron in vercel.json ist nur die Rückfallebene
+# (Hobby-Tarif erlaubt dort ohnehin nur einen Lauf pro Tag).
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  messen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dienste prüfen
+        run: |
+          code=$(curl -sS -o /tmp/antwort.json -w '%{http_code}' \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.STATUS_URL }}/api/check")
+          cat /tmp/antwort.json
+          echo
+          if [ "$code" != "200" ]; then
+            echo "Wächter antwortete mit HTTP $code"
+            exit 1
+          fi
