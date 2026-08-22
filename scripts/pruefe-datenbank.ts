@@ -96,7 +96,8 @@ async function main() {
     ],
     incidents: ["id", "title", "impact", "status", "started_at", "resolved_at", "automatic", "service_slugs"],
     incident_updates: ["id", "incident_id", "status", "body", "created_at"],
-    subscribers: ["id", "email", "token", "unsubscribe", "confirmed", "confirmed_at"],
+    subscribers: ["id", "email", "token", "unsubscribe", "confirmed", "confirmed_at",
+                  "mail_day", "mail_count"],
   };
   for (const [tabelle, spalten] of Object.entries(erwartet)) {
     const { error } = await db.from(tabelle).select(spalten.join(",")).limit(1);
@@ -217,6 +218,27 @@ async function main() {
     if (offen?.length !== 1) throw new Error(`${offen?.length} offene Vorfälle, erwartet 1`);
     if (!offen[0].incident_updates?.length) throw new Error("Die Meldungen kamen nicht mit");
     ok("Offener Vorfall samt Meldungen gefunden (genau diese Abfrage nutzt der Wächter)");
+    // ---- Tageskontingent ------------------------------------------------
+    const PRUEFMAIL = "__pruefung@example.invalid";
+    await db.from("subscribers").delete().eq("email", PRUEFMAIL);
+    const { error: e9 } = await db.from("subscribers").insert({
+      email: PRUEFMAIL, token: "t", unsubscribe: "u", confirmed: true,
+    });
+    if (e9) throw new Error(`Prüfabonnent: ${e9.message}`);
+
+    const zaehle = async () => {
+      const { data, error } = await db.rpc("mail_kontingent", {
+        p_email: PRUEFMAIL, p_grenze: 2,
+      });
+      if (error) throw new Error(`mail_kontingent: ${error.message}`);
+      return Number(data);
+    };
+    const folge = [await zaehle(), await zaehle(), await zaehle(), await zaehle()];
+    if (folge.join(",") !== "1,2,0,0") {
+      throw new Error(`Kontingent liefert ${folge.join(", ")} - erwartet 1, 2, 0, 0`);
+    }
+    ok("Tageskontingent lässt genau zwei Meldungen durch und sperrt danach");
+    await db.from("subscribers").delete().eq("email", PRUEFMAIL);
   } catch (err) {
     nein("Durchlauf abgebrochen", err instanceof Error ? err.message : String(err));
   } finally {
@@ -254,6 +276,7 @@ async function aufraeumen(db: SupabaseClient): Promise<string | null> {
   await db.from("daily_uptime").delete().eq("service_slug", PRUEFDIENST);
   await db.from("checks").delete().eq("service_slug", PRUEFDIENST);
   await db.from("services").delete().eq("slug", PRUEFDIENST);
+  await db.from("subscribers").delete().eq("email", "__pruefung@example.invalid");
 
   const { count } = await db
     .from("services").select("*", { count: "exact", head: true }).eq("slug", PRUEFDIENST);

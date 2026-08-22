@@ -1,3 +1,4 @@
+import { bewerteKontingent, hinweisLetzteMeldung, MAIL_GRENZE } from "./kontingent";
 import { baueHtml, baueText, type Meldung } from "./mail-vorlage";
 import { supabase } from "./supabase";
 import type { IncidentImpact } from "./types";
@@ -10,6 +11,8 @@ const RESEND_URL = process.env.RESEND_API_URL ?? "https://api.resend.com/emails"
 export type MailErgebnis = {
   gesendet: number;
   fehlgeschlagen: number;
+  /** Empfänger, deren Tageskontingent schon aufgebraucht war. */
+  uebersprungen: number;
   /** false, wenn gar kein Versand eingerichtet ist. */
   eingerichtet: boolean;
 };
@@ -84,7 +87,15 @@ async function senden({ an, betreff, titel, text, impact, abmelden }: MailEingan
   }
 }
 
-/** Bestätigungsmail nach dem Eintragen. */
+/**
+ * Bestätigungsmail nach dem Eintragen.
+ *
+ * Zählt bewusst NICHT gegen das Tageskontingent: Sie kommt auf eine
+ * Handlung der Person hin, und wer sich anmeldet, muss den Link auch
+ * bekommen - selbst wenn heute schon zwei Störungsmeldungen rausgingen.
+ * Gegen wiederholtes Eintragen fremder Adressen schützt stattdessen die
+ * Sperrfrist in der Abo-Route.
+ */
 export async function sendeBestaetigung(email: string, token: string): Promise<boolean> {
   return senden({
     an: email,
@@ -116,13 +127,45 @@ export async function sendeAnEmpfaenger(
   titel?: string,
 ): Promise<MailErgebnis> {
   if (!versandEingerichtet()) {
-    return { gesendet: 0, fehlgeschlagen: 0, eingerichtet: false };
+    return { gesendet: 0, fehlgeschlagen: 0, uebersprungen: 0, eingerichtet: false };
   }
 
+  const db = supabase();
   let gesendet = 0;
   let fehlgeschlagen = 0;
+  let uebersprungen = 0;
+
   for (const e of empfaenger) {
-    const ok = await senden({ an: e.email, betreff, titel, text, impact, abmelden: e.unsubscribe });
+    // Tageskontingent atomar in der Datenbank hochzählen. Ohne Datenbank
+    // gibt es keine Zählung - dann wird auch nichts begrenzt.
+    let zaehler = 1;
+    if (db) {
+      const { data, error } = await db.rpc("mail_kontingent", {
+        p_email: e.email,
+        p_grenze: MAIL_GRENZE,
+      });
+      if (error) {
+        console.error("[mail] Kontingent nicht prüfbar:", error);
+        fehlgeschlagen++;
+        continue;
+      }
+      zaehler = Number(data ?? 0);
+    }
+
+    const { darf, letzte } = bewerteKontingent(zaehler);
+    if (!darf) {
+      uebersprungen++;
+      continue;
+    }
+
+    const ok = await senden({
+      an: e.email,
+      betreff,
+      titel,
+      text: letzte ? `${text}\n\n${hinweisLetzteMeldung(BASIS)}` : text,
+      impact,
+      abmelden: e.unsubscribe,
+    });
     if (ok) gesendet++;
     else fehlgeschlagen++;
   }
@@ -130,7 +173,10 @@ export async function sendeAnEmpfaenger(
   if (fehlgeschlagen > 0) {
     console.error(`[mail] ${fehlgeschlagen} von ${empfaenger.length} Meldungen kamen nicht raus.`);
   }
-  return { gesendet, fehlgeschlagen, eingerichtet: true };
+  if (uebersprungen > 0) {
+    console.log(`[mail] ${uebersprungen} Empfänger hatten ihr Tageskontingent schon aufgebraucht.`);
+  }
+  return { gesendet, fehlgeschlagen, uebersprungen, eingerichtet: true };
 }
 
 /** Meldung an alle bestätigten Abonnenten. */
@@ -142,7 +188,12 @@ export async function notifySubscribers(
 ): Promise<MailErgebnis> {
   const db = supabase();
   if (!versandEingerichtet() || !db) {
-    return { gesendet: 0, fehlgeschlagen: 0, eingerichtet: versandEingerichtet() && Boolean(db) };
+    return {
+      gesendet: 0,
+      fehlgeschlagen: 0,
+      uebersprungen: 0,
+      eingerichtet: versandEingerichtet() && Boolean(db),
+    };
   }
 
   const { data, error } = await db
@@ -152,7 +203,7 @@ export async function notifySubscribers(
 
   if (error) {
     console.error("[mail] Abonnenten nicht abrufbar:", error);
-    return { gesendet: 0, fehlgeschlagen: 0, eingerichtet: true };
+    return { gesendet: 0, fehlgeschlagen: 0, uebersprungen: 0, eingerichtet: true };
   }
 
   return sendeAnEmpfaenger(

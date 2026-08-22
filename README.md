@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 115 Tests
+Prüfen: npm test        → 124 Tests
 DB:     npm run pruefe:datenbank
 ```
 
@@ -102,6 +102,20 @@ gebaut - Layouttabellen, Stile direkt am Element, keine SVG, keine nachzuladende
 Bilder: Outlook rendert mit der Word-Engine, und viele Postfächer laden Bilder erst
 auf Nachfrage. Die Farbe des Bandes folgt dem Schweregrad, genau wie auf der Seite.
 
+**Höchstens zwei Meldungen je Person und Tag.** Gezählt wird atomar in der Datenbank
+(`mail_kontingent`) - Prüfen und Hochzählen in einer Anweisung, sonst könnten zwei
+gleichzeitige Durchläufe beide "ist noch frei" lesen.
+
+Die Grenze hat einen Haken, den `hinweisLetzteMeldung` auffängt: Wer die Störungsmeldung
+bekommt, die Entwarnung aber nicht mehr, hält Scooly für kaputt, obwohl es längst wieder
+läuft. Die zweite Meldung des Tages trägt deshalb einen Satz, der sagt, dass jetzt Schluss
+ist und wo der aktuelle Stand steht.
+
+Die **Bestätigungsmail zählt nicht mit** - wer sich anmeldet, muss den Link bekommen.
+Gegen wiederholtes Eintragen fremder Adressen schützt stattdessen eine Sperrfrist von
+zehn Minuten in `/api/subscribe`, mit gleichbleibender Antwort: Sonst ließe sich daran
+ablesen, welche Adressen schon eingetragen sind.
+
 Jede Meldung trägt einen persönlichen Abmeldelink und die Kopfzeilen
 `List-Unsubscribe` / `List-Unsubscribe-Post`, damit die Ein-Klick-Abmeldung in Gmail
 und Outlook funktioniert. Die Abmeldung **löscht** die Adresse, sie merkt sie sich nicht.
@@ -124,6 +138,7 @@ Abschneiden, Gewichtung entfernt) - jeder davon wurde gefangen.
 | Bereich | Wie geprüft |
 |---|---|
 | `probe()` | Gegen einen **echten HTTP-Server**: 200, 204, Umleitung, 500, 403, 404, langsame Antwort, hängende Verbindung, abgebrochene Verbindung, toter Port. Keine Attrappe der `fetch`-Funktion. |
+| Kontingent | Grenze, letzte Meldung des Tages, Hinweistext; dass die Bestätigungsmail nicht mitzählt |
 | Mailvorlage | Maskierung, Bandfarbe je Schweregrad, kein SVG/Flexbox/Bild, Textfassung immer dabei |
 | Mailversand | Gegen einen **echten HTTP-Server**, der sich als Resend ausgibt: Kopfzeilen, eine Anfrage je Adresse, persönlicher Abmeldelink, `List-Unsubscribe`, Verhalten bei Fehlern |
 | Popups | Zuordnung Vorfall → Tag → Dienst, Mitternachtsüberläufe, offene Vorfälle, kaputte Zeitangaben |

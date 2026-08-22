@@ -27,12 +27,26 @@ export async function POST(request: Request) {
   // erneutes Eintragen einer fremden Adresse deren Abo stilllegen.
   const { data: vorhanden } = await db
     .from("subscribers")
-    .select("confirmed, unsubscribe")
+    .select("confirmed, unsubscribe, created_at")
     .eq("email", email)
     .maybeSingle();
 
   if (vorhanden?.confirmed) {
     return NextResponse.json({ message: "Diese Adresse ist bereits eingetragen." });
+  }
+
+  // Sperrfrist gegen wiederholtes Eintragen fremder Adressen: Sonst könnte
+  // jemand durch mehrfaches Absenden beliebig viele Bestätigungsmails an
+  // eine Adresse schicken lassen. Die Antwort bleibt dieselbe, damit sich
+  // daran nicht ablesen lässt, ob eine Adresse schon eingetragen ist.
+  const SPERRFRIST_MINUTEN = 10;
+  if (vorhanden?.created_at) {
+    const alter = (Date.now() - new Date(vorhanden.created_at as string).getTime()) / 60000;
+    if (alter < SPERRFRIST_MINUTEN) {
+      return NextResponse.json({
+        message: "Fast geschafft - bestätige die Mail in deinem Postfach.",
+      });
+    }
   }
 
   const token = randomUUID();
@@ -42,6 +56,7 @@ export async function POST(request: Request) {
       token,
       unsubscribe: (vorhanden?.unsubscribe as string | undefined) ?? randomUUID(),
       confirmed: false,
+      created_at: new Date().toISOString(),
     },
     { onConflict: "email" },
   );
