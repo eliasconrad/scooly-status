@@ -243,7 +243,7 @@ async function entscheiden(
       await db
         .from("incident_updates")
         .insert({ incident_id: inserted.id, status: "investigating", body });
-      await melden(`${ausfall ? "🔴" : "🟡"} ${title}`, body);
+      await melden(`${ausfall ? "🔴" : "🟡"} ${title}`, body, urteil.impact ?? "minor", title);
       break;
     }
 
@@ -257,7 +257,7 @@ async function entscheiden(
       await db
         .from("incident_updates")
         .insert({ incident_id: open.id, status: "identified", body });
-      await melden(`🔴 ${open.title as string}`, body);
+      await melden(`🔴 ${open.title as string}`, body, "major", open.title as string);
       break;
     }
 
@@ -271,7 +271,7 @@ async function entscheiden(
         .update({ status: "resolved", resolved_at: new Date().toISOString() })
         .eq("id", open.id);
       await db.from("incident_updates").insert({ incident_id: open.id, status: "resolved", body });
-      await melden(`🟢 ${open.title as string} - behoben`, body);
+      await melden(`🟢 ${open.title as string} - behoben`, body, "none", `${open.title as string} - behoben`);
       break;
     }
   }
@@ -364,9 +364,14 @@ export function beschreibungLangsam(
   return teile.join(" ");
 }
 
-async function melden(betreff: string, text: string): Promise<void> {
+async function melden(
+  betreff: string,
+  text: string,
+  impact: IncidentImpact = "minor",
+  titel?: string,
+): Promise<void> {
   await notifyTelegram(`<b>${betreff}</b>${text ? `\n${text}` : ""}`);
-  const post = await notifySubscribers(betreff, text || betreff);
+  const post = await notifySubscribers(betreff, text || betreff, impact, titel);
   if (!post.eingerichtet) {
     console.warn("[waechter] Kein Mailversand eingerichtet - Abonnenten wurden nicht benachrichtigt.");
   } else {

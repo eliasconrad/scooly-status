@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 89 Tests
+Prüfen: npm test        → 115 Tests
 DB:     npm run pruefe:datenbank
 ```
 
@@ -97,6 +97,11 @@ Link steht die Adresse auf `confirmed` und bekommt Meldungen.
 Ohne `RESEND_API_KEY` lehnt das Formular offen ab, statt eine Mail zu versprechen, die
 nie ankommt.
 
+Die Meldungen gehen als HTML **und** als Text raus. Das HTML ist bewusst altmodisch
+gebaut - Layouttabellen, Stile direkt am Element, keine SVG, keine nachzuladenden
+Bilder: Outlook rendert mit der Word-Engine, und viele Postfächer laden Bilder erst
+auf Nachfrage. Die Farbe des Bandes folgt dem Schweregrad, genau wie auf der Seite.
+
 Jede Meldung trägt einen persönlichen Abmeldelink und die Kopfzeilen
 `List-Unsubscribe` / `List-Unsubscribe-Post`, damit die Ein-Klick-Abmeldung in Gmail
 und Outlook funktioniert. Die Abmeldung **löscht** die Adresse, sie merkt sie sich nicht.
@@ -119,6 +124,7 @@ Abschneiden, Gewichtung entfernt) - jeder davon wurde gefangen.
 | Bereich | Wie geprüft |
 |---|---|
 | `probe()` | Gegen einen **echten HTTP-Server**: 200, 204, Umleitung, 500, 403, 404, langsame Antwort, hängende Verbindung, abgebrochene Verbindung, toter Port. Keine Attrappe der `fetch`-Funktion. |
+| Mailvorlage | Maskierung, Bandfarbe je Schweregrad, kein SVG/Flexbox/Bild, Textfassung immer dabei |
 | Mailversand | Gegen einen **echten HTTP-Server**, der sich als Resend ausgibt: Kopfzeilen, eine Anfrage je Adresse, persönlicher Abmeldelink, `List-Unsubscribe`, Verhalten bei Fehlern |
 | Popups | Zuordnung Vorfall → Tag → Dienst, Mitternachtsüberläufe, offene Vorfälle, kaputte Zeitangaben |
 | Entscheidungslogik (`bewerte`) | 16 Fälle: Serien, Unterbrechungen, Verschärfung, Schließen, zu wenig Messungen |

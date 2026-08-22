@@ -53,17 +53,14 @@ async function main() {
     [{ email: an, unsubscribe: randomUUID() }],
     "Scooly Status: Testmeldung",
     [
-      "Das hier ist eine Testmeldung von der Scooly-Status-Seite.",
+      "Scooly KI ist erreichbar, braucht aber 18,2 s pro Anfrage. Grenzwert sind 12,0 s. Üblich sind 1,2 s - also rund 15,2-mal so lang.",
       "",
-      "So sähe eine echte Störungsmeldung aus:",
+      "Einzelmessungen: 18,0 s, 17,4 s, 19,2 s.",
       "",
-      "  Scooly KI antwortet langsam",
-      "  Scooly KI ist erreichbar, braucht aber 18,2 s pro Anfrage.",
-      "  Grenzwert sind 12,0 s. Üblich sind 1,2 s - also rund 15,2-mal so lang.",
-      "  Einzelmessungen: 18,0 s, 17,4 s, 19,2 s.",
-      "",
-      "Wenn diese Mail angekommen ist, funktioniert der Versand.",
+      "Das hier ist eine Testmeldung. So sieht eine echte Störungsmeldung aus - wenn sie angekommen ist, funktioniert der Versand.",
     ].join("\n"),
+    "minor",
+    "Scooly KI antwortet langsam",
   );
 
   if (!ergebnis.eingerichtet) {

@@ -1,4 +1,6 @@
+import { baueHtml, baueText, type Meldung } from "./mail-vorlage";
 import { supabase } from "./supabase";
+import type { IncidentImpact } from "./types";
 
 const BASIS = process.env.PUBLIC_URL ?? "https://status.scooly.dev";
 const ABSENDER = process.env.RESEND_FROM ?? "Scooly Status <status@scooly.dev>";
@@ -19,7 +21,10 @@ export function versandEingerichtet(): boolean {
 type MailEingang = {
   an: string;
   betreff: string;
+  /** Überschrift im farbigen Band. Ohne Angabe wird der Betreff genommen. */
+  titel?: string;
   text: string;
+  impact?: IncidentImpact;
   /** Abmeldeschlüssel - landet im Link und im List-Unsubscribe-Kopf. */
   abmelden?: string;
 };
@@ -31,11 +36,19 @@ type MailEingang = {
  * ein `to` zu packen wäre bequemer, würde aber sämtliche Adressen an alle
  * verteilen.
  */
-async function senden({ an, betreff, text, abmelden }: MailEingang): Promise<boolean> {
+async function senden({ an, betreff, titel, text, impact, abmelden }: MailEingang): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
 
   const abmeldeLink = abmelden ? `${BASIS}/api/abmelden?schluessel=${abmelden}` : null;
+
+  const meldung: Meldung = {
+    titel: titel ?? betreff,
+    text,
+    impact: impact ?? "minor",
+    basis: BASIS,
+    abmeldeLink,
+  };
 
   try {
     const res = await fetch(RESEND_URL, {
@@ -45,9 +58,10 @@ async function senden({ an, betreff, text, abmelden }: MailEingang): Promise<boo
         from: ABSENDER,
         to: an,
         subject: betreff,
-        text: abmeldeLink
-          ? `${text}\n\n--\nScooly Status · ${BASIS}\nKeine Meldungen mehr: ${abmeldeLink}`
-          : `${text}\n\n--\nScooly Status · ${BASIS}`,
+        // Beides mitschicken: HTML für die Ansicht, Text für Postfächer
+        // ohne HTML und für die Vorschauzeile.
+        html: baueHtml(meldung),
+        text: baueText(meldung),
         // Ein-Klick-Abmeldung, wie es die Postfächer erwarten.
         headers: abmeldeLink
           ? {
@@ -75,9 +89,11 @@ export async function sendeBestaetigung(email: string, token: string): Promise<b
   return senden({
     an: email,
     betreff: "Scooly Status: Bitte bestätigen",
+    titel: "Noch ein Klick",
+    impact: "none",
     text:
       `Du möchtest benachrichtigt werden, wenn es bei Scooly eine Störung gibt.\n\n` +
-      `Bestätige das hier:\n${BASIS}/api/confirm?token=${token}\n\n` +
+      `Bestätige das hier: ${BASIS}/api/confirm?token=${token}\n\n` +
       `Wenn du das nicht warst, ignorier diese Mail einfach - ohne Bestätigung ` +
       `bekommst du nichts von uns.`,
   });
@@ -96,6 +112,8 @@ export async function sendeAnEmpfaenger(
   empfaenger: Empfaenger[],
   betreff: string,
   text: string,
+  impact: IncidentImpact = "minor",
+  titel?: string,
 ): Promise<MailErgebnis> {
   if (!versandEingerichtet()) {
     return { gesendet: 0, fehlgeschlagen: 0, eingerichtet: false };
@@ -104,7 +122,7 @@ export async function sendeAnEmpfaenger(
   let gesendet = 0;
   let fehlgeschlagen = 0;
   for (const e of empfaenger) {
-    const ok = await senden({ an: e.email, betreff, text, abmelden: e.unsubscribe });
+    const ok = await senden({ an: e.email, betreff, titel, text, impact, abmelden: e.unsubscribe });
     if (ok) gesendet++;
     else fehlgeschlagen++;
   }
@@ -116,7 +134,12 @@ export async function sendeAnEmpfaenger(
 }
 
 /** Meldung an alle bestätigten Abonnenten. */
-export async function notifySubscribers(betreff: string, text: string): Promise<MailErgebnis> {
+export async function notifySubscribers(
+  betreff: string,
+  text: string,
+  impact: IncidentImpact = "minor",
+  titel?: string,
+): Promise<MailErgebnis> {
   const db = supabase();
   if (!versandEingerichtet() || !db) {
     return { gesendet: 0, fehlgeschlagen: 0, eingerichtet: versandEingerichtet() && Boolean(db) };
@@ -139,5 +162,7 @@ export async function notifySubscribers(betreff: string, text: string): Promise<
     })),
     betreff,
     text,
+    impact,
+    titel,
   );
 }
