@@ -3,6 +3,7 @@ import { notifySubscribers } from "./mail";
 import { supabase } from "./supabase";
 import { notifyTelegram } from "./telegram";
 import { STATUS_LABEL } from "./uptime";
+import { zeit } from "./zeit";
 import type { ComponentStatus, IncidentImpact, Service } from "./types";
 
 /** Abstand zwischen zwei Messungen in Minuten - bestimmt die Ausfallminuten. */
@@ -134,52 +135,44 @@ export async function runChecks(): Promise<CheckReport[]> {
 }
 
 /**
- * Tagesbilanz aus den Rohmessungen neu rechnen.
+ * Tagesbilanz neu rechnen.
  *
- * Bewusst über Zählabfragen statt über die Zeilen selbst: Supabase liefert
- * standardmäßig höchstens 1000 Zeilen zurück. Bei einem Minutentakt wären das
- * 1440 Messungen am Tag - die Bilanz wäre still falsch.
+ * Die eigentliche Arbeit macht die Datenbankfunktion `rollup_day`. Hier
+ * zeilenweise zu rechnen ginge schief, sobald ein Tag mehr als 1000
+ * Messungen hat - so viele liefert Supabase nämlich höchstens zurück.
  */
 async function rollUpDay(slug: string, day: string): Promise<void> {
   const db = supabase()!;
-  const from = `${day}T00:00:00.000Z`;
-  const to = `${day}T23:59:59.999Z`;
+  const { error } = await db.rpc("rollup_day", {
+    p_slug: slug,
+    p_day: day,
+    p_interval_minutes: INTERVAL_MINUTES,
+  });
+  if (error) console.error(`[waechter] Tagesbilanz für ${slug} nicht gerechnet:`, error);
+}
 
-  const basis = () =>
-    db
-      .from("checks")
-      .select("*", { count: "exact", head: true })
-      .eq("service_slug", slug)
-      .gte("checked_at", from)
-      .lte("checked_at", to);
+/**
+ * Übliche Antwortzeit eines Dienstes, gemittelt über die letzten Tage.
+ * Dient als Vergleichswert in der Vorfallsbeschreibung - "8,4 s statt
+ * üblicher 1,2 s" sagt mehr als "8,4 s".
+ */
+async function ueblicheAntwortzeit(slug: string): Promise<number | null> {
+  const db = supabase()!;
+  const seit = new Date();
+  seit.setUTCDate(seit.getUTCDate() - 8);
 
-  const zaehle = async (filter: (q: ReturnType<typeof basis>) => ReturnType<typeof basis>) => {
-    const { count, error } = await filter(basis());
-    if (error) throw error;
-    return count ?? 0;
-  };
+  const { data } = await db
+    .from("daily_uptime")
+    .select("avg_response_ms")
+    .eq("service_slug", slug)
+    .gte("day", seit.toISOString().slice(0, 10))
+    .not("avg_response_ms", "is", null)
+    .order("day", { ascending: false })
+    .limit(7);
 
-  const checks = await zaehle((q) => q);
-  const failed = await zaehle((q) => q.eq("ok", false));
-  const degraded = await zaehle((q) => q.eq("ok", true).eq("degraded", true));
-
-  // Beeinträchtigte Messungen zählen halb - die Seite war erreichbar, nur zäh.
-  const uptime = checks === 0 ? 1 : (checks - failed - degraded * 0.5) / checks;
-
-  const { error } = await db.from("daily_uptime").upsert(
-    {
-      service_slug: slug,
-      day,
-      checks,
-      failed,
-      degraded,
-      uptime: Number(uptime.toFixed(6)),
-      downtime_minutes: failed * INTERVAL_MINUTES,
-      degraded_minutes: degraded * INTERVAL_MINUTES,
-    },
-    { onConflict: "service_slug,day" },
-  );
-  if (error) console.error(`[waechter] Tagesbilanz für ${slug} nicht gespeichert:`, error);
+  const werte = (data ?? []).map((r) => Number(r.avg_response_ms)).filter((n) => n > 0);
+  if (werte.length === 0) return null;
+  return Math.round(werte.reduce((a, b) => a + b, 0) / werte.length);
 }
 
 /** Holt den Kontext, lässt `bewerte()` entscheiden und schreibt das Ergebnis. */
@@ -192,12 +185,13 @@ async function entscheiden(
 
   const { data: recent } = await db
     .from("checks")
-    .select("ok, degraded")
+    .select("ok, degraded, response_ms, status_code, error")
     .eq("service_slug", service.slug)
     .order("checked_at", { ascending: false })
     .limit(Math.max(FAIL_STREAK, RECOVER_STREAK));
 
-  const messungen: Messung[] = (recent ?? []).map((c) => ({
+  const fenster = recent ?? [];
+  const messungen: Messung[] = fenster.map((c) => ({
     ok: Boolean(c.ok),
     degraded: Boolean(c.degraded),
   }));
@@ -221,14 +215,13 @@ async function entscheiden(
   switch (urteil.aktion) {
     case "vorfall_anlegen": {
       const ausfall = urteil.impact === "major";
+      const ueblich = await ueblicheAntwortzeit(service.slug);
       const title = ausfall
         ? `${service.name} ist nicht erreichbar`
         : `${service.name} antwortet langsam`;
       const body = ausfall
-        ? `Der Wächter hat ${FAIL_STREAK} Messungen hintereinander ohne Antwort gesehen${
-            latest.error ? ` (${latest.error})` : ""
-          }. Wir schauen uns das an.`
-        : `Der Wächter hat ${FAIL_STREAK} Messungen hintereinander über ${service.degraded_ms} ms gesehen. Die Funktion ist erreichbar, aber langsam.`;
+        ? beschreibungAusfall(service, fenster, latest)
+        : beschreibungLangsam(service, fenster, ueblich);
 
       const { data: inserted, error } = await db
         .from("incidents")
@@ -256,9 +249,11 @@ async function entscheiden(
 
     case "vorfall_verschaerfen": {
       await db.from("incidents").update({ impact: "major", status: "identified" }).eq("id", open.id);
-      const body = `${service.name} antwortet inzwischen gar nicht mehr${
-        latest.error ? ` (${latest.error})` : ""
-      }.`;
+      const body = `Aus der Verzögerung ist ein Ausfall geworden. ${beschreibungAusfall(
+        service,
+        fenster,
+        latest,
+      )}`;
       await db
         .from("incident_updates")
         .insert({ incident_id: open.id, status: "identified", body });
@@ -296,6 +291,77 @@ async function entscheiden(
   }
 
   return { statusAfter: urteil.status, action: urteil.aktion };
+}
+
+type Messwert = {
+  ok?: boolean | null;
+  degraded?: boolean | null;
+  response_ms?: number | null;
+  status_code?: number | null;
+  error?: string | null;
+};
+
+/**
+ * Was genau kaputt ist - mit den Zahlen, die dazu geführt haben.
+ *
+ * Es steht ausschließlich drin, was auch gemessen wurde. Keine Vermutung
+ * über die Ursache, keine Beschwichtigung.
+ */
+export function beschreibungAusfall(
+  service: Pick<Service, "name">,
+  fenster: Messwert[],
+  latest: Pick<Probe, "error" | "status_code" | "response_ms">,
+): string {
+  const teile: string[] = [];
+
+  teile.push(
+    latest.status_code
+      ? `${service.name} antwortet mit HTTP ${latest.status_code}.`
+      : `${service.name} antwortet gar nicht${latest.error ? ` (${latest.error})` : ""}.`,
+  );
+
+  const codes = [...new Set(fenster.map((m) => m.status_code).filter(Boolean))];
+  const fehler = [...new Set(fenster.map((m) => m.error).filter(Boolean))];
+  if (codes.length > 1) teile.push(`Gesehene Antworten: HTTP ${codes.join(", ")}.`);
+  else if (fehler.length > 1) teile.push(`Gesehene Fehler: ${fehler.join(" · ")}.`);
+
+  teile.push(
+    `${FAIL_STREAK} Messungen hintereinander ohne Erfolg, zuletzt nach ${zeit(
+      latest.response_ms ?? 0,
+    )}.`,
+  );
+  return teile.join(" ");
+}
+
+/** Wie langsam genau - gemessen, mit Grenzwert und üblichem Wert daneben. */
+export function beschreibungLangsam(
+  service: Pick<Service, "name" | "degraded_ms">,
+  fenster: Messwert[],
+  ueblich: number | null,
+): string {
+  const zeiten = fenster
+    .map((m) => m.response_ms)
+    .filter((n): n is number => typeof n === "number" && n > 0);
+
+  const schnitt = zeiten.length
+    ? Math.round(zeiten.reduce((a, b) => a + b, 0) / zeiten.length)
+    : 0;
+
+  const teile = [
+    `${service.name} ist erreichbar, braucht aber ${zeit(schnitt)} pro Anfrage.`,
+    `Grenzwert sind ${zeit(service.degraded_ms)}.`,
+  ];
+
+  if (ueblich && ueblich > 0) {
+    const faktor = schnitt / ueblich;
+    teile.push(
+      `Üblich sind ${zeit(ueblich)}${faktor >= 1.5 ? ` - also rund ${faktor.toFixed(1).replace(".", ",")}-mal so lang` : ""}.`,
+    );
+  }
+  if (zeiten.length > 1) {
+    teile.push(`Einzelmessungen: ${zeiten.map(zeit).join(", ")}.`);
+  }
+  return teile.join(" ");
 }
 
 async function melden(betreff: string, text: string): Promise<void> {

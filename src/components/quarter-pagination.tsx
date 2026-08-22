@@ -27,7 +27,7 @@ export function QuarterPagination({
   const canForward = page > 1;
 
   return (
-    <div className="flex items-center gap-[10px]">
+    <div className="flex w-full items-center gap-[10px] min-[651px]:w-auto">
       <Link
         href={href(page + 1)}
         aria-label="Vorheriges Quartal"
@@ -36,7 +36,7 @@ export function QuarterPagination({
         <ChevronLeft size={16} strokeWidth={2} />
       </Link>
 
-      <span className="text-[16px] leading-6">{label}</span>
+      <span className="flex-1 text-center text-[16px] leading-6 min-[651px]:flex-none">{label}</span>
 
       {canForward ? (
         <Link

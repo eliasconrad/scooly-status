@@ -45,9 +45,11 @@ export function SubscribeButton() {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="rounded-[4px] bg-[var(--sp-ink)] px-[15px] pt-[10px] pb-[9px] text-[12px] font-medium uppercase tracking-[2px] text-white transition-opacity hover:opacity-85"
+          className="rounded-[4px] bg-[var(--sp-ink)] px-[15px] pt-[10px] pb-[9px] text-[12px] font-medium whitespace-nowrap uppercase leading-[19px] tracking-[2px] text-white transition-opacity hover:opacity-85"
         >
-          Updates abonnieren
+          {/* Auf schmalen Geräten nur "Abonnieren" - so macht es das Original auch. */}
+          <span className="min-[451px]:hidden">Abonnieren</span>
+          <span className="hidden min-[451px]:inline">Updates abonnieren</span>
         </button>
       </DialogTrigger>
 
@@ -82,7 +84,7 @@ export function SubscribeButton() {
             <button
               type="submit"
               disabled={state === "sending"}
-              className="rounded-[4px] bg-[var(--sp-ink)] px-[15px] pt-[10px] pb-[9px] text-[12px] font-medium uppercase tracking-[2px] text-white disabled:opacity-60"
+              className="rounded-[4px] bg-[var(--sp-ink)] px-[15px] pt-[10px] pb-[9px] text-[12px] font-medium whitespace-nowrap uppercase leading-[19px] tracking-[2px] text-white disabled:opacity-60"
             >
               {state === "sending" ? "Wird gesendet …" : "Abonnieren"}
             </button>

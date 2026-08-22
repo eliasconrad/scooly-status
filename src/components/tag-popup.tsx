@@ -1,5 +1,6 @@
 import { TriangleAlert } from "lucide-react";
 import { IMPACT_COLOR } from "@/lib/uptime";
+import { zeit } from "@/lib/zeit";
 import type { UptimeDay } from "@/lib/types";
 
 /**
@@ -61,6 +62,34 @@ export function TagPopup({ tag }: { tag: UptimeDay }) {
               <span className="ml-auto whitespace-nowrap">{dauer(feld.minuten)}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {(tag.avg_response_ms !== null || tag.top_error) && (
+        <div>
+          <h3 className="mt-[19px] mb-[8px] text-[13px] font-medium uppercase leading-5 tracking-[0.6px] text-[var(--sp-muted)]">
+            Gemessen
+          </h3>
+          <dl className="text-[14px] leading-[21px]">
+            {tag.avg_response_ms !== null && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--sp-muted)]">Antwortzeit im Schnitt</dt>
+                <dd>{zeit(tag.avg_response_ms)}</dd>
+              </div>
+            )}
+            {tag.max_response_ms !== null && (
+              <div className="flex justify-between gap-4">
+                <dt className="text-[var(--sp-muted)]">langsamste Antwort</dt>
+                <dd>{zeit(tag.max_response_ms)}</dd>
+              </div>
+            )}
+            {tag.top_error && (
+              <div className="flex justify-between gap-4">
+                <dt className="shrink-0 text-[var(--sp-muted)]">häufigster Fehler</dt>
+                <dd className="text-right">{tag.top_error}</dd>
+              </div>
+            )}
+          </dl>
         </div>
       )}
 

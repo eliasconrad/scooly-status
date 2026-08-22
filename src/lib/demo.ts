@@ -46,12 +46,20 @@ function demoDays(slug: string, days: string[], proTag: Map<string, RelatedIncid
       anteilAusfall = 0;
     }
     const fehlminuten = Math.round((1 - uptime) * 24 * 60);
+    const grund = Math.round(hash(`e${slug}${day}`) * 3);
+    const schnitt = 320 + Math.round(hash(`m${slug}${day}`) * 900);
     return {
       day,
       uptime,
       checks: 288,
       downtime_minutes: Math.round(fehlminuten * anteilAusfall),
       degraded_minutes: Math.round(fehlminuten * (1 - anteilAusfall) * 2),
+      avg_response_ms: schnitt,
+      max_response_ms: schnitt + Math.round(hash(`x${slug}${day}`) * 4000),
+      top_error:
+        fehlminuten === 0
+          ? null
+          : ["HTTP 502", "HTTP 500", "Keine Antwort nach 15000 ms", "fetch failed"][grund],
       incidents: proTag.get(`${slug}:${day}`) ?? [],
     };
   });

@@ -61,8 +61,8 @@ test("ein Monat ohne Messdaten hat keine Verfügbarkeit - keine 100 Prozent", ()
 
 test("die Monatsverfügbarkeit rechnet nur mit gemessenen Tagen", () => {
   const daten = new Map<string, UptimeDay>([
-    ["2026-06-01", { day: "2026-06-01", uptime: 1, checks: 288, downtime_minutes: 0, degraded_minutes: 0, incidents: [] }],
-    ["2026-06-02", { day: "2026-06-02", uptime: 0.5, checks: 288, downtime_minutes: 720, degraded_minutes: 0, incidents: [] }],
+    ["2026-06-01", { day: "2026-06-01", uptime: 1, checks: 288, downtime_minutes: 0, degraded_minutes: 0, avg_response_ms: null, max_response_ms: null, top_error: null, incidents: [] }],
+    ["2026-06-02", { day: "2026-06-02", uptime: 0.5, checks: 288, downtime_minutes: 720, degraded_minutes: 0, avg_response_ms: null, max_response_ms: null, top_error: null, incidents: [] }],
   ]);
   const m = buildMonth({ year: 2026, month: 5 }, daten, AM);
   assert.equal(m.uptime, 0.75, "zwei gemessene Tage, nicht dreißig");

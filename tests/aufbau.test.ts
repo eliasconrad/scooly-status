@@ -97,3 +97,64 @@ test("Demodaten sind in der Produktion gesperrt", () => {
   // Der Kalender muss dieselbe Sperre haben.
   assert.match(lies("src/lib/calendar.ts"), /NODE_ENV === "production"[\s\S]{0,80}STATUS_DEMO/);
 });
+
+test("die Umschaltpunkte stehen so im CSS, wie sie am Original gemessen wurden", () => {
+  const css = lies("src/app/globals.css");
+  // 451 = Kopfzeile stapelt, Knopftext kurz, Schrift kleiner
+  // 651 = zurück auf die Desktop-Werte
+  // 601 / 1025 = 30 -> 60 -> 90 Tage in der Leiste
+  for (const punkt of [451, 651, 601, 1025]) {
+    assert.match(css, new RegExp(`min-width:\\s*${punkt}px`), `Umschaltpunkt ${punkt} fehlt`);
+  }
+});
+
+test("der Ausschnitt der Leiste zeigt rechnerisch genau 30 bzw. 60 Tage", () => {
+  const css = lies("src/app/globals.css");
+  const GESAMT = 448; // viewBox-Breite
+  const RASTER = GESAMT / 90;
+
+  const gelesen = [...css.matchAll(/scaleX\(([\d.]+)\)\s*translateX\((-?[\d.]+)px\)/g)].map(
+    (m) => ({ skala: Number(m[1]), versatz: Number(m[2]) }),
+  );
+  assert.equal(gelesen.length, 2, "erwartet je eine Regel für 30 und 60 Tage");
+
+  for (const [i, tage] of [30, 60].entries()) {
+    const { skala, versatz } = gelesen[i];
+    const fensterBreite = tage * RASTER;
+
+    // Der Versatz muss auf den ersten sichtbaren Tag zeigen.
+    assert.ok(
+      Math.abs(-versatz - (GESAMT - fensterBreite)) < 2,
+      `${tage} Tage: Versatz ${versatz}, erwartet rund ${-(GESAMT - fensterBreite).toFixed(0)}`,
+    );
+    // Und die Streckung muss dieses Fenster auf die volle Breite bringen.
+    assert.ok(
+      Math.abs(skala - GESAMT / fensterBreite) < 0.02,
+      `${tage} Tage: Streckung ${skala}, erwartet ${(GESAMT / fensterBreite).toFixed(4)}`,
+    );
+    // Gegenprobe: der letzte Tag muss genau am rechten Rand landen.
+    const rechterRand = (GESAMT + versatz) * skala;
+    assert.ok(
+      Math.abs(rechterRand - GESAMT) < 3,
+      `${tage} Tage: rechter Rand landet bei ${rechterRand.toFixed(1)} statt ${GESAMT}`,
+    );
+  }
+});
+
+test("zu jedem Ausschnitt gibt es einen eigenen Prozentwert", () => {
+  // Sonst stünde am Handy die 90-Tage-Zahl unter einer 30-Tage-Leiste.
+  const bar = lies("src/components/uptime-bar.tsx");
+  assert.match(bar, /days\.slice\(-30\)/);
+  assert.match(bar, /days\.slice\(-60\)/);
+  for (const k of ["sp-zeitraum-30", "sp-zeitraum-60", "sp-zeitraum-90"]) {
+    assert.match(lies("src/app/globals.css"), new RegExp(`\\.${k}`), `${k} fehlt im CSS`);
+  }
+});
+
+test("der Inhalt nimmt 90 Prozent der Fensterbreite, höchstens 850", () => {
+  const css = lies("src/app/globals.css");
+  const block = css.slice(css.indexOf(".sp-container"), css.indexOf(".sp-container") + 200);
+  assert.match(block, /width:\s*90%/);
+  assert.match(block, /max-width:\s*var\(--sp-width\)/);
+  assert.match(css, /--sp-width:\s*850px/);
+});

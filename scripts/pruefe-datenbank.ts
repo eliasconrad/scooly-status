@@ -92,6 +92,7 @@ async function main() {
     daily_uptime: [
       "service_slug", "day", "checks", "failed", "degraded",
       "uptime", "downtime_minutes", "degraded_minutes",
+      "avg_response_ms", "max_response_ms", "top_error",
     ],
     incidents: ["id", "title", "impact", "status", "started_at", "resolved_at", "automatic", "service_slugs"],
     incident_updates: ["id", "incident_id", "status", "body", "created_at"],
@@ -139,30 +140,58 @@ async function main() {
     if (count !== 1) throw new Error(`Zählabfrage lieferte ${count}, erwartet 1`);
     ok("Zählabfrage stimmt (die braucht die Tagesbilanz)");
 
+    // Zweite Messung: geglückt, aber langsam - dann lässt sich prüfen, ob
+    // die Datenbank Schnitt, Maximum und Fehlertext richtig zusammenrechnet.
+    const { error: e2b } = await db.from("checks").insert({
+      service_slug: PRUEFDIENST,
+      checked_at: jetzt,
+      ok: true,
+      degraded: true,
+      status_code: 200,
+      response_ms: 4000,
+      error: null,
+    });
+    if (e2b) throw new Error(`Zweite Messung: ${e2b.message}`);
+
     const tag = jetzt.slice(0, 10);
-    const { error: e4 } = await db.from("daily_uptime").upsert(
-      {
-        service_slug: PRUEFDIENST, day: tag, checks: 1, failed: 1, degraded: 0,
-        uptime: 0, downtime_minutes: 5, degraded_minutes: 0,
-      },
-      { onConflict: "service_slug,day" },
-    );
-    if (e4) throw new Error(`Tagesbilanz: ${e4.message}`);
-    // Zweimal - genau das macht der Wächter alle fünf Minuten.
-    const { error: e5 } = await db.from("daily_uptime").upsert(
-      {
-        service_slug: PRUEFDIENST, day: tag, checks: 2, failed: 1, degraded: 1,
-        uptime: 0.25, downtime_minutes: 5, degraded_minutes: 5,
-      },
-      { onConflict: "service_slug,day" },
-    );
-    if (e5) throw new Error(`Tagesbilanz überschreiben: ${e5.message}`);
-    const { data: bilanz } = await db
+    const { error: e4 } = await db.rpc("rollup_day", {
+      p_slug: PRUEFDIENST, p_day: tag, p_interval_minutes: 5,
+    });
+    if (e4) throw new Error(`rollup_day: ${e4.message}`);
+
+    const { data: bilanz, error: e5 } = await db
       .from("daily_uptime").select("*").eq("service_slug", PRUEFDIENST).single();
+    if (e5) throw new Error(`Tagesbilanz lesen: ${e5.message}`);
+
+    // 2 Messungen: eine fehlgeschlagen, eine langsam -> (2 - 1 - 0.5) / 2 = 0.25
     if (Number(bilanz?.uptime) !== 0.25) {
-      throw new Error(`Tagesbilanz zeigt ${bilanz?.uptime}, erwartet 0.25`);
+      throw new Error(`Verfügbarkeit ${bilanz?.uptime}, erwartet 0.25`);
     }
-    ok("Tagesbilanz lässt sich überschreiben (onConflict greift)");
+    if (Number(bilanz?.checks) !== 2 || Number(bilanz?.failed) !== 1) {
+      throw new Error(`Zählung stimmt nicht: ${bilanz?.checks} Messungen, ${bilanz?.failed} Fehler`);
+    }
+    ok("rollup_day rechnet Verfügbarkeit und Zählung richtig");
+
+    // Nur die geglückte Messung darf in den Schnitt eingehen.
+    if (Number(bilanz?.avg_response_ms) !== 4000) {
+      throw new Error(`Schnitt ${bilanz?.avg_response_ms} ms, erwartet 4000 (nur die geglückte Messung)`);
+    }
+    if (bilanz?.top_error !== "Prüflauf") {
+      throw new Error(`häufigster Fehler "${bilanz?.top_error}", erwartet "Prüflauf"`);
+    }
+    ok("rollup_day liefert Antwortzeit und Fehlertext für die Diagnose");
+
+    // Noch einmal aufrufen - der Wächter macht das alle fünf Minuten.
+    const { error: e5b } = await db.rpc("rollup_day", {
+      p_slug: PRUEFDIENST, p_day: tag, p_interval_minutes: 5,
+    });
+    if (e5b) throw new Error(`rollup_day erneut: ${e5b.message}`);
+    const { count: zeilen } = await db
+      .from("daily_uptime")
+      .select("*", { count: "exact", head: true })
+      .eq("service_slug", PRUEFDIENST);
+    if (zeilen !== 1) throw new Error(`${zeilen} Tagesbilanzen statt einer - onConflict greift nicht`);
+    ok("mehrfacher Aufruf legt keine zweite Zeile an");
 
     const { data: vorfall, error: e6 } = await db
       .from("incidents")

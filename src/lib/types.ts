@@ -50,6 +50,12 @@ export type UptimeDay = {
   downtime_minutes: number;
   /** Minuten über dem Grenzwert - erreichbar, aber zäh */
   degraded_minutes: number;
+  /** Schnitt der geglückten Messungen in ms, null = nichts gemessen */
+  avg_response_ms: number | null;
+  /** langsamste geglückte Messung des Tages in ms */
+  max_response_ms: number | null;
+  /** häufigster Fehlertext des Tages, z.B. "HTTP 502" */
+  top_error: string | null;
   /** Vorfälle, die an diesem Tag diesen Dienst betrafen */
   incidents: RelatedIncident[];
 };

@@ -23,7 +23,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       >
         <SmoothScroll />
         <TooltipProvider delayDuration={80}>
-          <div className="mx-auto w-full max-w-[850px] px-5 min-[890px]:px-0">{children}</div>
+          <div className="sp-container">{children}</div>
         </TooltipProvider>
       </body>
     </html>

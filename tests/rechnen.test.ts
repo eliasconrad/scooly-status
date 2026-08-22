@@ -7,7 +7,8 @@ import type { UptimeDay } from "../src/lib/types";
 
 const tag = (uptime: number | null, checks = 288): UptimeDay => ({
   day: "2026-01-01", uptime, checks,
-  downtime_minutes: 0, degraded_minutes: 0, incidents: [],
+  downtime_minutes: 0, degraded_minutes: 0,
+  avg_response_ms: null, max_response_ms: null, top_error: null, incidents: [],
 });
 
 test("ohne Messdaten gibt es keinen Wert - nicht etwa 100 Prozent", () => {

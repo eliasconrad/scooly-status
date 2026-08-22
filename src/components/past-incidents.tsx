@@ -26,13 +26,21 @@ export function PastIncidents({
 
   return (
     <section className="mt-[70px]">
-      <h2 className="mb-[30px] text-[28px] font-medium leading-[38px]">{heading}</h2>
+      <h2
+        className="mb-[30px] font-medium leading-[1.35]"
+        style={{ fontSize: "var(--sp-h2-size)" }}
+      >
+        {heading}
+      </h2>
 
       {days.map((day) => {
         const dayIncidents = byDay.get(day) ?? [];
         return (
           <div key={day} className="mb-[38px]">
-            <h3 className="border-b border-[var(--sp-rule)] pb-[10px] text-[20px] font-medium leading-[29px]">
+            <h3
+              className="border-b border-[var(--sp-rule)] pb-[10px] font-medium leading-[1.45]"
+              style={{ fontSize: "var(--sp-h3-size)" }}
+            >
               {longDate(day)}
             </h3>
 
@@ -56,8 +64,8 @@ function IncidentBlock({ incident }: { incident: Incident }) {
   return (
     <article className="pt-[18px]">
       <h4
-        className="text-[20px] font-medium leading-[29px]"
-        style={{ color: IMPACT_COLOR[incident.impact] }}
+        className="font-medium leading-[1.45]"
+        style={{ color: IMPACT_COLOR[incident.impact], fontSize: "var(--sp-incident-size)" }}
       >
         {incident.title}
       </h4>

@@ -146,6 +146,49 @@
   --sp-blue: #3498db;
 
   --sp-width: 850px;
+
+  /* ----------------------------------------------------------------
+     Staffel für schmale Fenster. Die drei Stufen und ihre Werte sind
+     am Original ausgemessen (Umschaltpunkte 451 px und 651 px).
+     ---------------------------------------------------------------- */
+  --sp-band-pad: 8px 12px;
+  --sp-band-size: 16px;
+  --sp-band-line: 24px;
+  --sp-row-pad: 9.6px 12px 8px;
+  --sp-name-size: 14px;
+  --sp-h2-size: 22px;
+  --sp-h3-size: 18px;
+  --sp-incident-size: 16px;
+}
+
+@media (min-width: 451px) {
+  :root {
+    --sp-band-pad: 10.8px 16px;
+    --sp-band-size: 18px;
+    --sp-band-line: 26px;
+    --sp-row-pad: 13.6px 16px 12px;
+  }
+}
+
+@media (min-width: 651px) {
+  :root {
+    --sp-band-pad: 12px 20px;
+    --sp-band-size: 20px;
+    --sp-band-line: 29px;
+    --sp-row-pad: 17.6px 20px 16px;
+    --sp-name-size: 16px;
+    --sp-h2-size: 28px;
+    --sp-h3-size: 20px;
+    --sp-incident-size: 20px;
+  }
+}
+
+/* Der Inhalt nimmt 90 % des Fensters, höchstens aber 850 px - genau wie
+   beim Original. Feste Seitenränder sähen auf schmalen Geräten enger aus. */
+.sp-container {
+  width: 90%;
+  max-width: var(--sp-width);
+  margin-inline: auto;
 }
 
 html,
@@ -209,6 +252,65 @@ body {
   border-right: 1px solid var(--sp-rule);
   border-bottom: 1px solid var(--sp-rule);
   border-radius: 0;
+}
+
+/* ------------------------------------------------------------------
+   Ausschnitt der 90-Tage-Leiste.
+
+   Das Original ändert bei schmalen Fenstern den viewBox der SVG, sodass
+   nur die letzten 30 bzw. 60 Tage zu sehen sind. Ein viewBox lässt sich
+   nicht in CSS setzen - dieselbe Wirkung entsteht aber durch Verschieben
+   und Strecken der Balkengruppe:
+
+     30 Tage: Bereich x 298,667..448 auf 448 strecken
+     60 Tage: Bereich x 149,333..448 auf 448 strecken
+
+   Das Original rundet auf 300 bzw. 150 und schneidet sich damit den
+   linken Balken zur Hälfte ab. Hier steht der exakte Rasterwert
+   (30 x 448/90 = 149,333) - dann sind alle 30 Tage ganz zu sehen und
+   die Streckungsfaktoren werden glatt 3 und 1,5.
+   ------------------------------------------------------------------ */
+.sp-bar-fenster {
+  transform-origin: 0 0;
+  transform: scaleX(3) translateX(-298.666667px);
+}
+
+@media (min-width: 601px) {
+  .sp-bar-fenster {
+    transform: scaleX(1.5) translateX(-149.333333px);
+  }
+}
+
+@media (min-width: 1025px) {
+  .sp-bar-fenster {
+    transform: none;
+  }
+}
+
+/* Legende und Prozentwert richten sich nach dem sichtbaren Ausschnitt. */
+.sp-zeitraum-30,
+.sp-zeitraum-60,
+.sp-zeitraum-90 {
+  display: none;
+}
+.sp-zeitraum-30 {
+  display: inline;
+}
+@media (min-width: 601px) {
+  .sp-zeitraum-30 {
+    display: none;
+  }
+  .sp-zeitraum-60 {
+    display: inline;
+  }
+}
+@media (min-width: 1025px) {
+  .sp-zeitraum-60 {
+    display: none;
+  }
+  .sp-zeitraum-90 {
+    display: inline;
+  }
 }
 
 /* Der Balken unter dem Zeiger wird dunkel hervorgehoben, wie im Original. */

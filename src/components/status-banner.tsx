@@ -20,13 +20,16 @@ export function StatusBanner({
   return (
     <motion.div
       role="status"
-      className="rounded-[4px] px-5 py-3 mb-[100px]"
-      style={{ backgroundColor: STATUS_COLOR[status] }}
+      className="mb-[70px] rounded-[4px] min-[651px]:mb-[100px]"
+      style={{ backgroundColor: STATUS_COLOR[status], padding: "var(--sp-band-pad)" }}
       initial={reduce ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     >
-      <h2 className="text-[20px] font-medium leading-[29px] text-white">
+      <h2
+        className="font-medium text-white"
+        style={{ fontSize: "var(--sp-band-size)", lineHeight: "var(--sp-band-line)" }}
+      >
         {BANNER_LABEL[status]}
       </h2>
       <span className="block text-[14px] leading-[21px] text-white/80">

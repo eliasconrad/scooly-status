@@ -78,6 +78,9 @@ export function buildMonth(
       checks: 0,
       downtime_minutes: 0,
       degraded_minutes: 0,
+      avg_response_ms: null,
+      max_response_ms: null,
+      top_error: null,
       incidents: [],
     };
     cells.push({
@@ -186,6 +189,9 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
         checks: Number(row.checks ?? 0),
         downtime_minutes: Number(row.downtime_minutes ?? 0),
         degraded_minutes: Number(row.degraded_minutes ?? 0),
+        avg_response_ms: row.avg_response_ms === null ? null : Number(row.avg_response_ms),
+        max_response_ms: row.max_response_ms === null ? null : Number(row.max_response_ms),
+        top_error: (row.top_error as string | null) ?? null,
         incidents: [],
       },
     ]),

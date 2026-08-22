@@ -19,7 +19,10 @@ export function IncidentMonth({ label, incidents }: { label: string; incidents: 
 
   return (
     <section className="mb-[40px]">
-      <h3 className="mb-[20px] border-b border-[var(--sp-rule)] pb-[4px] text-[28px] font-medium leading-[38px]">
+      <h3
+        className="mb-[20px] border-b border-[var(--sp-rule)] pb-[4px] font-medium leading-[1.35]"
+        style={{ fontSize: "var(--sp-h2-size)" }}
+      >
         {label}
       </h3>
 
@@ -32,8 +35,8 @@ export function IncidentMonth({ label, incidents }: { label: string; incidents: 
           {sichtbar.map((incident) => (
             <article key={incident.id} className="mb-[20px]">
               <h4
-                className="text-[20px] font-medium leading-[29px]"
-                style={{ color: IMPACT_COLOR[incident.impact] }}
+                className="font-medium leading-[1.45]"
+                style={{ color: IMPACT_COLOR[incident.impact], fontSize: "var(--sp-incident-size)" }}
               >
                 {incident.title}
               </h4>

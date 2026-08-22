@@ -30,7 +30,7 @@ export default async function HistoryPage(props: PageProps<"/history">) {
 
       {grouped ? (
         <>
-          <div className="mb-[32px] flex justify-end">
+          <div className="mb-[32px] flex justify-start min-[651px]:justify-end">
             <QuarterPagination basePath="/history" page={page} label={pageLabel(months)} />
           </div>
 
