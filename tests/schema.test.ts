@@ -232,3 +232,29 @@ test("das Prüfskript erwartet genau die Spalten, die im Schema stehen", () => {
   assert.ok(block.length > 100, "der Erwartungsblock wurde nicht gefunden");
   assert.deepEqual(fehler, [], fehler.join("\n"));
 });
+
+test("anon und authenticated bekommen nichts - jetzt und künftig", () => {
+  // Ohne das wäre der Haken "Automatically expose new tables" im Dashboard
+  // eine offene Flanke für jede später angelegte Tabelle.
+  assert.match(sql, /revoke all on all tables in schema public from anon, authenticated;/);
+  assert.match(
+    sql,
+    /alter default privileges in schema public revoke all on tables from anon, authenticated;/,
+    "künftige Tabellen wären sonst öffentlich lesbar",
+  );
+});
+
+test("jede Tabelle schaltet RLS selbst ein", () => {
+  // Damit ist der Haken "Enable automatic RLS" im Dashboard für uns egal.
+  for (const tabelle of schema.keys()) {
+    assert.match(
+      sql,
+      new RegExp(`alter table\\s+${tabelle}\\s+enable row level security`),
+      `${tabelle} hat kein RLS`,
+    );
+  }
+});
+
+test("es gibt keine Regel, die anon doch etwas lesen ließe", () => {
+  assert.doesNotMatch(sql, /create policy/i, "eine Policy würde RLS wieder öffnen");
+});

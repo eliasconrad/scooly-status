@@ -163,9 +163,13 @@ Entscheidungslogik dahinter ist durch die Tests abgedeckt.
    schweigen, wenn alle draufschauen. Dazu käme, dass der Service-Role-Key (der die
    Zugriffskontrolle komplett aushängt) dann in zwei Anwendungen läge.
 
-   Einstellungen im Dashboard: Data API **an**, „Automatically expose new tables" **aus**,
-   „Enable automatic RLS" **an**. Die Rechte für `service_role` stehen ausdrücklich im
-   Schema, deshalb läuft es auch bei anders gesetzten Haken.
+   Einstellungen im Dashboard: **Data API an** - die braucht `supabase-js`. Die beiden
+   anderen Haken sind egal, weil das Schema es selbst regelt: Es schaltet RLS auf allen
+   sechs Tabellen ein, definiert bewusst keine Policy, entzieht `anon` und
+   `authenticated` alle Rechte und setzt die Standardrechte so, dass auch später
+   angelegte Tabellen nicht öffentlich lesbar sind.
+
+   `npm run pruefe:datenbank` weist das mit gesetztem `SUPABASE_ANON_KEY` nach.
 2. `.env.example` nach `.env.local` kopieren und ausfüllen.
 3. Bei Vercel deployen (Repo: `eliasconrad/scooly-status`), Domain `status.scooly.dev`
    verbinden.
