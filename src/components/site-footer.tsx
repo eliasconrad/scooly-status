@@ -12,7 +12,17 @@ export function SiteFooter({ back }: { back?: { href: string; label: string } })
       ) : (
         <span />
       )}
-      <span className="text-[var(--sp-muted)]">Scooly · Elias Conrad</span>
+      <span className="text-[var(--sp-muted)]">
+        Scooly ·{" "}
+        <a
+          href="https://www.eliasconrad.eu"
+          target="_blank"
+          rel="noreferrer"
+          className="underline-offset-2 hover:text-[var(--sp-ink)] hover:underline"
+        >
+          Elias Conrad
+        </a>
+      </span>
     </footer>
   );
 }
