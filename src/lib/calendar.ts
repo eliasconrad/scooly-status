@@ -1,5 +1,4 @@
 import { supabase } from "./supabase";
-import { DEFAULT_SERVICES } from "./services";
 import { overallUptime } from "./uptime";
 import type { Service, UptimeDay } from "./types";
 
@@ -124,7 +123,11 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
     sort_order: Number(row.sort_order ?? 0),
     active: true,
   }));
-  if (services.length === 0) services.push(...DEFAULT_SERVICES);
+  // Keine eingetragenen Dienste bedeutet: nichts wird gemessen. Ein Kalender
+  // mit erfundenen Diensten wäre schlimmer als eine ehrliche Fehlermeldung.
+  if (services.length === 0) {
+    throw new Error("Es sind keine Dienste eingetragen, die überwacht werden.");
+  }
 
   const selected = services.find((s) => s.slug === slug) ?? services[0];
 

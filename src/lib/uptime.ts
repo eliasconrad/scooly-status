@@ -59,17 +59,37 @@ export const BAR = {
   },
 } as const;
 
+/**
+ * Verfügbarkeit über mehrere Tage.
+ *
+ * Gewichtet nach Anzahl der Messungen: Der laufende Tag hat morgens erst
+ * ein paar Messungen. Zählte er wie ein voller Tag, würde ein einzelner
+ * Ausfall am Morgen den 90-Tage-Wert massiv verzerren.
+ */
 export function overallUptime(days: UptimeDay[]): number | null {
   const measured = days.filter((d) => d.uptime !== null);
   if (measured.length === 0) return null;
-  const sum = measured.reduce((acc, d) => acc + (d.uptime as number), 0);
-  return sum / measured.length;
+
+  const gewicht = measured.reduce((acc, d) => acc + Math.max(1, d.checks), 0);
+  const summe = measured.reduce(
+    (acc, d) => acc + (d.uptime as number) * Math.max(1, d.checks),
+    0,
+  );
+  return summe / gewicht;
 }
 
-/** "99.37 %" - das Original zeigt zwei Nachkommastellen mit Leerzeichen vor dem %. */
+/**
+ * "99.37 %" - zwei Nachkommastellen mit Leerzeichen vor dem Prozentzeichen,
+ * wie im Original.
+ *
+ * Abgeschnitten statt gerundet: 99,996 % würde gerundet als "100.00 %"
+ * dastehen, obwohl es an dem Tag einen Ausfall gab. Glatte 100 % soll nur
+ * sehen, wer wirklich keinen einzigen Aussetzer hatte.
+ */
 export function formatUptime(uptime: number | null): string {
   if (uptime === null) return "-";
-  return `${(uptime * 100).toFixed(2)} %`;
+  const prozent = Math.floor(Math.min(1, Math.max(0, uptime)) * 10000) / 100;
+  return `${prozent.toFixed(2)} %`;
 }
 
 export const STATUS_LABEL: Record<ComponentStatus, string> = {

@@ -10,6 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
+Prüfen: npm test        → 69 Tests
 ```
 
 ## Seiten und wie sie zusammenhängen
@@ -70,6 +71,43 @@ Rückfallebene und im Hobby-Tarif ohnehin auf einen Lauf pro Tag begrenzt.
 Vorfälle, die kein Ping sehen kann ("Karteikarten sind gerade inhaltlich schlecht"), trägt
 man von Hand in `incidents` + `incident_updates` ein. `automatic = false` setzen, dann fasst
 der Wächter sie nicht an.
+
+## Was geprüft ist - und was nicht
+
+`npm test` fährt 69 Tests. Die Tests wurden gegengeprüft, indem absichtlich Fehler
+eingebaut wurden (Spaltenname vertippt, Schwelle von 3 auf 1 gesetzt, Aufrunden statt
+Abschneiden, Gewichtung entfernt) - jeder davon wurde gefangen.
+
+| Bereich | Wie geprüft |
+|---|---|
+| `probe()` | Gegen einen **echten HTTP-Server**: 200, 204, Umleitung, 500, 403, 404, langsame Antwort, hängende Verbindung, abgebrochene Verbindung, toter Port. Keine Attrappe der `fetch`-Funktion. |
+| Entscheidungslogik (`bewerte`) | 16 Fälle: Serien, Unterbrechungen, Verschärfung, Schließen, zu wenig Messungen |
+| Rechenwege | Gewichtung, Abschneiden, Farbskala, Balkengeometrie, schlechtester Status |
+| Kalender | Monatsanfänge, Schaltjahr, Jahreswechsel beim Blättern, Zukunftstage |
+| Schema | Jede Tabelle und **jede Spalte**, die der Code anfasst, muss in `schema.sql` stehen |
+| Routen | Wächter weist ohne/mit falschem Geheimnis ab, scheitert ohne Datenbank laut; Adressprüfung |
+| Aufbau | Jede gelesene Umgebungsvariable steht in `.env.example`; Messtakt im Code = Takt im Zeitplan; Zeitgrenze passt ins Zeitfenster |
+
+**Nicht geprüft: die Supabase-Anbindung selbst.** Dafür bräuchte es eine laufende
+Postgres-Instanz; auf diesem Rechner ist weder Docker noch Postgres installiert. Der
+Schema-Abgleich fängt Tippfehler in Tabellen- und Spaltennamen, aber **nicht**, ob eine
+Abfrage inhaltlich das Richtige liefert. Bevor das scharf geht, gehört der Rauchtest
+unten einmal von Hand gemacht.
+
+### Rauchtest, sobald die Datenbank steht
+
+1. Einen Testdienst eintragen, dessen URL du an- und abschalten kannst.
+2. `curl -H "Authorization: Bearer $CRON_SECRET" $STATUS_URL/api/check` - die Antwort
+   listet je Dienst `ok`, `response_ms`, `status` und `action`.
+3. URL abschalten, dreimal aufrufen. Nach dem dritten Mal muss `action` auf
+   `vorfall_anlegen` springen, der Vorfall auf `/` stehen und die Telegram-Nachricht da sein.
+4. URL wieder anschalten, dreimal aufrufen. Nach dem dritten Mal muss `action` auf
+   `vorfall_schliessen` springen und der Vorfall als behoben dastehen.
+5. In `daily_uptime` nachsehen, ob `checks`, `failed` und `uptime` zu dem passen, was
+   wirklich passiert ist.
+
+Wenn Schritt 3 oder 4 nicht so ausgeht, stimmt die Datenbankanbindung nicht - die
+Entscheidungslogik dahinter ist durch die Tests abgedeckt.
 
 ## Einrichten
 

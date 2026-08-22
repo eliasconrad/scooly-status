@@ -18,6 +18,10 @@ export default async function Page() {
 
   try {
     data = await getStatusPageData();
+    if (data.services.length === 0) {
+      // Keine Dienste heißt: nichts gemessen. Ein grünes Banner wäre erfunden.
+      throw new Error("Es sind keine Dienste eingetragen, die überwacht werden.");
+    }
   } catch (err) {
     failure = err instanceof Error ? err.message : "Unbekannter Fehler";
   }
