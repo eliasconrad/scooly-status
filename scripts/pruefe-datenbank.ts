@@ -95,7 +95,7 @@ async function main() {
       "avg_response_ms", "max_response_ms", "top_error",
     ],
     incidents: ["id", "title", "impact", "status", "started_at", "resolved_at", "automatic", "service_slugs"],
-    incident_updates: ["id", "incident_id", "status", "body", "created_at"],
+    incident_updates: ["id", "incident_id", "status", "body", "created_at", "notified_at"],
     subscribers: ["id", "email", "token", "unsubscribe", "confirmed", "confirmed_at",
                   "mail_day", "mail_count"],
   };

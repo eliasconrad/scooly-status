@@ -44,9 +44,9 @@ test("die Bestätigungsmail zählt nicht gegen das Kontingent", async () => {
     "wer sich anmeldet, muss den Bestätigungslink bekommen");
 });
 
-test("gegen wiederholtes Eintragen fremder Adressen gibt es eine Sperrfrist", () => {
-  const route = (require("node:fs") as typeof import("node:fs"))
-    .readFileSync("src/app/api/subscribe/route.ts", "utf8");
+test("gegen wiederholtes Eintragen fremder Adressen gibt es eine Sperrfrist", async () => {
+  const { readFileSync } = await import("node:fs");
+  const route = readFileSync("src/app/api/subscribe/route.ts", "utf8");
   assert.match(route, /SPERRFRIST_MINUTEN/);
   // Die Antwort muss gleich bleiben, sonst verrät sie, wer eingetragen ist.
   const treffer = route.match(/Fast geschafft - bestätige die Mail in deinem Postfach\./g) ?? [];

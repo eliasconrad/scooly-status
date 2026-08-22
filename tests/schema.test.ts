@@ -87,11 +87,14 @@ function zugriffeSammeln(): Zugriff[] {
       for (const m of kette.matchAll(/\.(?:eq|neq|gt|gte|lt|lte|is|like|ilike|contains|order)\(\s*"(\w+)"/g)) {
         spalten.add(m[1]);
       }
-      // Feldlisten in select(), ohne * und ohne eingebettete Tabellen
+      // Feldlisten in select(). Eingebettete Tabellen - "incidents(title,
+      // impact)" - gehören zur anderen Tabelle und werden vorher entfernt,
+      // sonst gelten deren Spalten fälschlich als Spalten dieser hier.
       for (const m of kette.matchAll(/\.select\(\s*"([^"]*)"/g)) {
-        for (const feld of m[1].split(",")) {
+        const ohneEinbettung = m[1].replace(/\w+\s*\([^)]*\)/g, "");
+        for (const feld of ohneEinbettung.split(",")) {
           const f = feld.trim();
-          if (!f || f === "*" || f.includes("(")) continue;
+          if (!f || f === "*") continue;
           spalten.add(f);
         }
       }

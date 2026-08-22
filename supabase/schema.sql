@@ -77,9 +77,15 @@ create table if not exists incident_updates (
   incident_id uuid not null references incidents(id) on delete cascade,
   status      text not null,
   body        text not null,
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  notified_at timestamptz                    -- gesetzt, sobald verschickt
 );
 create index if not exists incident_updates_incident_idx on incident_updates (incident_id, created_at desc);
+
+-- Nur die noch nicht verschickten interessieren den Wächter.
+create index if not exists incident_updates_offen_idx
+  on incident_updates (created_at)
+  where notified_at is null;
 
 -- --------------------------------------------------------------------------
 -- Abonnenten

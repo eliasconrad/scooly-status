@@ -1,10 +1,16 @@
 import { bewerte, FAIL_STREAK, RECOVER_STREAK, type Messung } from "./bewertung";
 import { notifySubscribers } from "./mail";
+import {
+  bandFarbeFuer,
+  betreffUndTitel,
+  meldungsText,
+  nochAktuell,
+} from "./meldungen";
 import { supabase } from "./supabase";
 import { notifyTelegram } from "./telegram";
 import { STATUS_LABEL } from "./uptime";
 import { zeit } from "./zeit";
-import type { ComponentStatus, IncidentImpact, Service } from "./types";
+import type { ComponentStatus, IncidentImpact, IncidentStatus, Service } from "./types";
 
 /** Abstand zwischen zwei Messungen in Minuten - bestimmt die Ausfallminuten. */
 const INTERVAL_MINUTES = Number(process.env.CHECK_INTERVAL_MINUTES ?? 5);
@@ -131,6 +137,10 @@ export async function runChecks(): Promise<CheckReport[]> {
     reports.push({ slug: service.slug, probe: result, statusBefore, statusAfter, action });
   }
 
+  // Zum Schluss alles verschicken, was offen ist - eigene Vorfälle wie
+  // von Hand eingetragene.
+  await verschickeOffeneMeldungen();
+
   return reports;
 }
 
@@ -243,7 +253,6 @@ async function entscheiden(
       await db
         .from("incident_updates")
         .insert({ incident_id: inserted.id, status: "investigating", body });
-      await melden(`${ausfall ? "🔴" : "🟡"} ${title}`, body, urteil.impact ?? "minor", title);
       break;
     }
 
@@ -257,7 +266,6 @@ async function entscheiden(
       await db
         .from("incident_updates")
         .insert({ incident_id: open.id, status: "identified", body });
-      await melden(`🔴 ${open.title as string}`, body, "major", open.title as string);
       break;
     }
 
@@ -271,7 +279,6 @@ async function entscheiden(
         .update({ status: "resolved", resolved_at: new Date().toISOString() })
         .eq("id", open.id);
       await db.from("incident_updates").insert({ incident_id: open.id, status: "resolved", body });
-      await melden(`🟢 ${open.title as string} - behoben`, body, "none", `${open.title as string} - behoben`);
       break;
     }
   }
@@ -364,19 +371,89 @@ export function beschreibungLangsam(
   return teile.join(" ");
 }
 
-async function melden(
-  betreff: string,
-  text: string,
-  impact: IncidentImpact = "minor",
-  titel?: string,
-): Promise<void> {
-  await notifyTelegram(`<b>${betreff}</b>${text ? `\n${text}` : ""}`);
-  const post = await notifySubscribers(betreff, text || betreff, impact, titel);
-  if (!post.eingerichtet) {
-    console.warn("[waechter] Kein Mailversand eingerichtet - Abonnenten wurden nicht benachrichtigt.");
-  } else {
-    console.log(`[waechter] Meldung an ${post.gesendet} Abonnenten, ${post.fehlgeschlagen} Fehlschläge.`);
+/**
+ * Verschickt alles, was noch nicht draußen ist.
+ *
+ * Führend ist `incident_updates.notified_at`. Das hat drei Vorteile
+ * gegenüber dem früheren Verschicken direkt an der Stelle, an der ein
+ * Vorfall entsteht:
+ *
+ *   - Von Hand eingetragene Vorfälle gehen genauso raus wie die des
+ *     Wächters. Vorher blieben sie stumm.
+ *   - Bricht der Versand ab, steht die Meldung beim nächsten Lauf noch
+ *     offen und wird nachgeholt, statt verloren zu gehen.
+ *   - Doppelt kann nichts rausgehen, weil der Vermerk in der Datenbank
+ *     steht und nicht im Ablauf.
+ */
+export async function verschickeOffeneMeldungen(): Promise<{
+  verschickt: number;
+  uebergangen: number;
+}> {
+  const db = supabase();
+  if (!db) return { verschickt: 0, uebergangen: 0 };
+
+  const { data, error } = await db
+    .from("incident_updates")
+    .select("id, status, body, created_at, incidents(title, impact, status)")
+    .is("notified_at", null)
+    .order("created_at", { ascending: true })
+    .limit(20);
+
+  if (error) {
+    console.error("[waechter] Offene Meldungen nicht abrufbar:", error);
+    return { verschickt: 0, uebergangen: 0 };
   }
+
+  let verschickt = 0;
+  let uebergangen = 0;
+
+  for (const zeile of data ?? []) {
+    const vorfall = zeile.incidents as unknown as {
+      title: string;
+      impact: IncidentImpact;
+    } | null;
+    if (!vorfall) continue;
+
+    const status = zeile.status as IncidentStatus;
+
+    // Zu alte Meldungen nur abhaken, nicht mehr verschicken.
+    if (!nochAktuell(String(zeile.created_at))) {
+      uebergangen++;
+    } else {
+      const { betreff, titel } = betreffUndTitel(vorfall.title, vorfall.impact, status);
+      const text = meldungsText(status, String(zeile.body));
+
+      await notifyTelegram(`<b>${betreff}</b>\n${text}`);
+      const post = await notifySubscribers(
+        betreff,
+        text,
+        bandFarbeFuer(vorfall.impact, status),
+        titel,
+      );
+      if (!post.eingerichtet) {
+        console.warn("[waechter] Kein Mailversand eingerichtet - Abonnenten hörten nichts.");
+      } else {
+        console.log(
+          `[waechter] "${betreff}": ${post.gesendet} verschickt, ` +
+            `${post.uebersprungen} über Kontingent, ${post.fehlgeschlagen} Fehlschläge.`,
+        );
+      }
+      verschickt++;
+    }
+
+    // Erst nach dem Versand abhaken - bricht es vorher ab, wird es
+    // beim nächsten Lauf nachgeholt.
+    const { error: vermerk } = await db
+      .from("incident_updates")
+      .update({ notified_at: new Date().toISOString() })
+      .eq("id", zeile.id);
+    if (vermerk) console.error("[waechter] Vermerk nicht gesetzt:", vermerk);
+  }
+
+  if (uebergangen > 0) {
+    console.log(`[waechter] ${uebergangen} Meldungen waren zu alt und wurden nur abgehakt.`);
+  }
+  return { verschickt, uebergangen };
 }
 
 function toService(row: Record<string, unknown>): Service {

@@ -10,7 +10,7 @@ Infrastruktur liegt wie das, was sie überwacht, ist genau dann weg, wenn man si
 ```
 Start:  npm run dev     → http://localhost:3005
 Bauen:  npm run build
-Prüfen: npm test        → 124 Tests
+Prüfen: npm test        → 132 Tests
 DB:     npm run pruefe:datenbank
 ```
 
@@ -71,7 +71,29 @@ Rückfallebene und im Hobby-Tarif ohnehin auf einen Lauf pro Tag begrenzt.
 
 Vorfälle, die kein Ping sehen kann ("Karteikarten sind gerade inhaltlich schlecht"), trägt
 man von Hand in `incidents` + `incident_updates` ein. `automatic = false` setzen, dann fasst
-der Wächter sie nicht an.
+der Wächter sie nicht an - **verschickt werden sie aber genauso**, siehe unten.
+
+### Wie eine Meldung hinausgeht
+
+Führend ist `incident_updates.notified_at`. Am Ende jedes Durchlaufs holt der Wächter alle
+Meldungen ohne Vermerk, verschickt sie und hakt sie erst danach ab:
+
+```
+neuer Eintrag in incident_updates   (vom Wächter ODER von Hand)
+        │
+        ▼
+nächster Lauf: notified_at is null  →  Telegram + Mail an alle Bestätigten
+        │                                    (höchstens 2 je Person und Tag)
+        ▼
+notified_at gesetzt
+```
+
+Drei Dinge fallen damit weg, die vorher Probleme waren: Von Hand eingetragene Vorfälle
+blieben stumm. Brach der Versand ab, war die Meldung verloren. Und ob etwas schon
+draußen war, hing am Ablauf statt an der Datenbank.
+
+Meldungen, die älter als `MELDE_FENSTER_MINUTEN` sind, werden nur abgehakt statt
+verschickt - sonst käme nach einem längeren Stillstand ein Schwall überholter Nachrichten.
 
 ## Popups an den Balken
 
