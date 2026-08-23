@@ -1,5 +1,5 @@
 import { UptimeBar } from "./uptime-bar";
-import { messwertZeile } from "@/lib/stoerung";
+import { ersterMesstag, messwertZeile } from "@/lib/stoerung";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/uptime";
 import type { ServiceStatus } from "@/lib/types";
 
@@ -29,7 +29,19 @@ function messwert(s: ServiceStatus): string | null {
   return messwertZeile(s.status, s.days[s.days.length - 1], s.service.degraded_ms);
 }
 
+/** "23. August 2026" - für den Hinweis unter der Leiste. */
+function langesDatum(iso: string): string {
+  const [j, m, t] = iso.split("-").map(Number);
+  return new Date(Date.UTC(j, m - 1, t)).toLocaleDateString("de-AT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function ServiceList({ services }: { services: ServiceStatus[] }) {
+  const seit = ersterMesstag(services);
   return (
     <section>
       <p className="mb-px text-right text-[14px] leading-6 text-[var(--sp-muted)]">
@@ -77,6 +89,13 @@ export function ServiceList({ services }: { services: ServiceStatus[] }) {
           </div>
         ))}
       </div>
+
+      {seit && (
+        <p className="pt-[10px] text-[14px] leading-6 text-[var(--sp-muted)]">
+          Gemessen wird seit {langesDatum(seit)}. Die grauen Tage davor liegen vor der ersten
+          Messung - dort ist nichts ausgefallen, es hat nur niemand hingesehen.
+        </p>
+      )}
     </section>
   );
 }

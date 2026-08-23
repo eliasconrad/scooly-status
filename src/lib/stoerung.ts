@@ -114,3 +114,29 @@ export function bannerBetroffen(services: ServiceStatus[]): string | null {
   if (betroffen.length === 0) return null;
   return `Betroffen: ${aufzaehlung(betroffen.map((s) => s.service.name))}`;
 }
+
+/**
+ * Der erste Tag, an dem überhaupt gemessen wurde.
+ *
+ * Alles davor steht grau in der Leiste - nicht weil etwas kaputt war,
+ * sondern weil es die Messung noch nicht gab. Das ist ein Unterschied, den
+ * die Farbe allein nicht ausdrücken kann, also muss er danebenstehen.
+ * Null heißt: entweder wurde noch nie gemessen, oder es gibt keine Lücke.
+ */
+export function ersterMesstag(services: ServiceStatus[]): string | null {
+  let ersteMessung: string | null = null;
+  let anfangDerLeiste: string | null = null;
+
+  for (const s of services) {
+    for (const tag of s.days) {
+      if (anfangDerLeiste === null || tag.day < anfangDerLeiste) anfangDerLeiste = tag.day;
+      if (tag.checks > 0 && (ersteMessung === null || tag.day < ersteMessung)) {
+        ersteMessung = tag.day;
+      }
+    }
+  }
+
+  // Nur melden, wenn davor wirklich graue Tage stehen.
+  if (!ersteMessung || !anfangDerLeiste) return null;
+  return ersteMessung > anfangDerLeiste ? ersteMessung : null;
+}
