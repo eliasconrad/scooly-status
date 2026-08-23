@@ -1,5 +1,6 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 process.env.CRON_SECRET = "geheim-fuer-den-test";
 // Bewusst ohne SUPABASE_URL: so lässt sich prüfen, dass die Route bei
@@ -67,4 +68,25 @@ test("eine Anfrage ohne JSON stürzt nicht ab", async () => {
     new Request("http://localhost/api/subscribe", { method: "POST", body: "kein json" }),
   );
   assert.equal(r.status, 400);
+});
+
+test("ohne eingerichtetes Geheimnis wird abgelehnt, nicht durchgelassen", async () => {
+  // Vorher stand im Wächter `if (secret) { ... }`: Fehlte die Variable, war
+  // der Endpunkt für jeden offen - und er schreibt in die Datenbank,
+  // verschickt Mails und ruft sechs fremde Dienste auf.
+  const vorher = process.env.CRON_SECRET;
+  delete process.env.CRON_SECRET;
+  try {
+    const r = await waechter(anfrage({}));
+    assert.equal(r.status, 503, "ohne Geheimnis darf nicht gemessen werden");
+  } finally {
+    process.env.CRON_SECRET = vorher;
+  }
+});
+
+test("der Vergleich bricht nicht beim ersten falschen Zeichen ab", async () => {
+  // Ein Vergleich mit === verrät über die Dauer, wie viele Zeichen stimmten.
+  const quelle = readFileSync(new URL("../src/app/api/check/route.ts", import.meta.url), "utf8");
+  assert.match(quelle, /timingSafeEqual/);
+  assert.doesNotMatch(quelle, /auth !== `Bearer/, "der alte, verratende Vergleich");
 });
