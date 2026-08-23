@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test tests/*.test.ts",
     "pruefe:datenbank": "tsx scripts/pruefe-datenbank.ts",
-    "testmail": "tsx scripts/testmail.ts"
+    "testmail": "tsx scripts/testmail.ts",
+    "stoerung": "tsx scripts/stoerung-simulieren.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
