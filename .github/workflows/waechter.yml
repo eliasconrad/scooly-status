@@ -1,12 +1,28 @@
 name: Wächter
 
-# Alle fünf Minuten messen. Läuft bewusst bei GitHub und nicht bei Vercel:
-# Ein Wächter auf derselben Plattform wie das Überwachte schweigt genau dann,
-# wenn es darauf ankommt. Vercel Cron in vercel.json ist nur die Rückfallebene
-# (Hobby-Tarif erlaubt dort ohnehin nur einen Lauf pro Tag).
+# Läuft bewusst bei GitHub und nicht bei Vercel: Ein Wächter auf derselben
+# Plattform wie das Überwachte schweigt genau dann, wenn es darauf ankommt.
+# Vercel Cron in vercel.json ist nur die Rückfallebene (Hobby-Tarif erlaubt
+# dort ohnehin nur einen Lauf pro Tag).
+#
+# WARUM ALLE 30 UND NICHT ALLE 5 MINUTEN: Zwei Gründe, beide gemessen.
+#
+#   1. GitHub hält den Takt gar nicht ein. Mit "*/5" kamen am 23.08. real
+#      Abstände von 20 bis 40 Minuten heraus - geplante Läufe werden
+#      gedrosselt und fallen unter Last auch aus.
+#   2. Jeder Lauf wird auf eine volle Minute aufgerundet, obwohl er 5 bis 15
+#      Sekunden dauert. Bei einem privaten Repo sind 2000 Minuten im Monat
+#      frei; alle fünf Minuten wären 8640. Ohne hinterlegte Zahlungsweise
+#      stellt GitHub die Actions dann bis zum Monatsende ab - eine
+#      Statusseite, die ab dem 7. schweigt, ist schlimmer als eine, die
+#      halbstündlich misst.
+#
+# Alle 30 Minuten sind 1440 Minuten im Monat und passen sicher hinein.
+# Für einen echten Fünf-Minuten-Takt braucht es einen Auslöser von aussen
+# (siehe README) - dieser Lauf bleibt dann als Netz darunter bestehen.
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:

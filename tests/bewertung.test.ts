@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { darfAufraeumen } from "../src/lib/checker";
 import { bewerte, FAIL_STREAK, RECOVER_STREAK } from "../src/lib/bewertung";
 import type { ComponentStatus, IncidentImpact } from "../src/lib/types";
 
@@ -107,4 +108,18 @@ test("ein Ausfall gewinnt gegen langsam im selben Fenster", () => {
   const r = urteil([weg, zaeh, weg]);
   assert.equal(r.aktion, "nichts", "gemischtes Fenster ist keine Serie");
   assert.equal(r.status, "operational");
+});
+
+// ---- Aufräumen der Rohmessungen ---------------------------------------------
+
+test("aufgeräumt wird nachts, unabhängig vom Takt des Wächters", () => {
+  // `prune_checks()` lag seit Schritt 7 in der Datenbank und wurde nie
+  // aufgerufen - `checks` wäre unbegrenzt gewachsen.
+  const um = (stunde: number, minute = 0) =>
+    new Date(Date.UTC(2026, 7, 23, stunde, minute));
+  assert.equal(darfAufraeumen(um(3)), true);
+  assert.equal(darfAufraeumen(um(3, 55)), true, "auch bei grossen Abständen wird die Stunde getroffen");
+  assert.equal(darfAufraeumen(um(2, 59)), false);
+  assert.equal(darfAufraeumen(um(4)), false);
+  assert.equal(darfAufraeumen(um(12)), false);
 });

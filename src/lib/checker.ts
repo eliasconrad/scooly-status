@@ -142,6 +142,13 @@ export async function runChecks(): Promise<CheckReport[]> {
   // von Hand eingetragene.
   await verschickeOffeneMeldungen();
 
+  // Nachts einmal die alten Rohmessungen wegräumen. Scheitert das, ist es
+  // kein Grund, den Messlauf als gescheitert zu melden.
+  if (darfAufraeumen(new Date())) {
+    const { error } = await db.rpc("prune_checks");
+    if (error) console.error("[waechter] Aufräumen fehlgeschlagen:", error.message);
+  }
+
   return reports;
 }
 
@@ -318,6 +325,22 @@ type Messwert = {
  * Es steht ausschließlich drin, was auch gemessen wurde. Keine Vermutung
  * über die Ursache, keine Beschwichtigung.
  */
+/**
+ * Einmal am Tag die alten Rohmessungen wegräumen.
+ *
+ * `prune_checks()` lag seit Schritt 7 in der Datenbank und wurde von
+ * nirgendwo aufgerufen - beim Prüflauf am 23.08. aufgefallen. Ohne sie
+ * wächst `checks` unbegrenzt: bei einer Messung alle fünf Minuten sind das
+ * gut 1700 Zeilen am Tag.
+ *
+ * Die Stunde 3 UTC ist willkürlich, aber fest: nachts, und unabhängig davon,
+ * wie oft der Wächter tatsächlich läuft. Trifft er die Stunde mehrfach,
+ * löscht der zweite Aufruf schlicht nichts mehr.
+ */
+export function darfAufraeumen(jetzt: Date): boolean {
+  return jetzt.getUTCHours() === 3;
+}
+
 export function beschreibungAusfall(
   service: Pick<Service, "name" | "wirkung_ausfall">,
   fenster: Messwert[],
