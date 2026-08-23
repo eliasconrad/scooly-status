@@ -14,9 +14,15 @@ import { createClient } from "@supabase/supabase-js";
  * der Test läuft, sieht ein Fremder diesen Vorfall. Dann soll unmissver-
  * ständlich dastehen, dass niemand betroffen ist.
  *
- *   npm run stoerung an     # anlegen
- *   npm run stoerung aus    # wegräumen
- *   npm run stoerung stand  # nachsehen
+ *   npm run stoerung an       # anlegen, ohne jemanden zu benachrichtigen
+ *   npm run stoerung an-laut  # anlegen UND die Meldewege auslösen
+ *   npm run stoerung aus      # wegräumen
+ *   npm run stoerung stand    # nachsehen
+ *
+ * "an" vermerkt die Meldung gleich als verschickt: Wer nur die Anzeige in
+ * der App ansehen will, soll dafür keine Mails an Abonnenten auslösen.
+ * "an-laut" lässt genau das zu - zum Prüfen, ob Telegram und Mail wirklich
+ * ankommen. Beim nächsten Messlauf geht die Meldung dann raus.
  */
 
 const TITEL = "TEST - bitte ignorieren: Störungsanzeige wird geprüft";
@@ -26,7 +32,7 @@ const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_
   auth: { persistSession: false },
 });
 
-async function an() {
+async function an(laut = false) {
   await aus(true);
   const { data: vorfall, error } = await db
     .from("incidents")
@@ -48,12 +54,18 @@ async function an() {
     body:
       "Dies ist ein Test der Störungsanzeige und betrifft niemanden. " +
       "Scooly läuft normal weiter. Der Eintrag verschwindet gleich wieder.",
-    // Schon als verschickt markiert: Der Test soll keine Mails auslösen.
-    notified_at: new Date().toISOString(),
+    // Ohne "an-laut" gleich als verschickt vermerkt: Wer nur die Anzeige
+    // ansehen will, soll keine Mails an echte Abonnenten auslösen.
+    notified_at: laut ? null : new Date().toISOString(),
   });
 
   await db.from("services").update({ status: "major_outage" }).eq("slug", SLUG);
   console.log(`  Störung angelegt: "${TITEL}"`);
+  console.log(
+    laut
+      ? "  Beim nächsten Messlauf gehen Telegram und Mail raus."
+      : "  Still angelegt - es wird nichts verschickt.",
+  );
   console.log("  /api/zustand meldet jetzt alles_gut=false. Zum Wegräumen: npm run stoerung aus");
 }
 
@@ -73,7 +85,8 @@ async function stand() {
 }
 
 const befehl = process.argv[2];
-if (befehl === "an") void an();
+if (befehl === "an") void an(false);
+else if (befehl === "an-laut") void an(true);
 else if (befehl === "aus") void aus();
 else if (befehl === "stand") void stand();
-else console.log("  Aufruf: npm run stoerung an | aus | stand");
+else console.log("  Aufruf: npm run stoerung an | an-laut | aus | stand");
