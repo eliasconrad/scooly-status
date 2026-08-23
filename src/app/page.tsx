@@ -1,3 +1,4 @@
+import { AktuelleStoerung } from "@/components/aktuelle-stoerung";
 import { DataError } from "@/components/data-error";
 import { Masthead } from "@/components/masthead";
 import { PastIncidents } from "@/components/past-incidents";
@@ -7,6 +8,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { lastNDays } from "@/lib/demo";
 import { getStatusPageData, INCIDENT_DAYS_ON_HOME } from "@/lib/status";
 import type { StatusPageData } from "@/lib/types";
+import { bannerBetroffen, offeneVorfaelle } from "@/lib/stoerung";
 import { worstStatus } from "@/lib/uptime";
 
 /** Alle 60 Sekunden neu bauen - der Wächter misst alle 5 Minuten. */
@@ -31,12 +33,20 @@ export default async function Page() {
   return (
     <>
       <Masthead />
+      {data?.demo && (
+        <p className="mb-[16px] rounded-[4px] border border-dashed border-[var(--sp-rule)] px-[12px] py-[8px] text-[14px] leading-6 text-[var(--sp-muted)]">
+          Demodaten - es hängt keine Datenbank dran. Nichts davon ist gemessen.
+        </p>
+      )}
       {data ? (
         <>
           <StatusBanner
             status={worstStatus(data.services.map((s) => s.status))}
             lastCheckedAt={data.last_checked_at}
+            betroffen={bannerBetroffen(data.services)}
+            dicht={offeneVorfaelle(data.incidents).length > 0}
           />
+          <AktuelleStoerung incidents={data.incidents} services={data.services} />
           <ServiceList services={data.services} />
           <PastIncidents incidents={data.incidents} days={days} />
         </>

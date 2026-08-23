@@ -1,7 +1,13 @@
 import { DEFAULT_SERVICES } from "./services";
 import { overallUptime } from "./uptime";
 import { incidentsByDay } from "./vorfaelle";
-import type { Incident, RelatedIncident, StatusPageData, UptimeDay } from "./types";
+import type {
+  ComponentStatus,
+  Incident,
+  RelatedIncident,
+  StatusPageData,
+  UptimeDay,
+} from "./types";
 
 /**
  * Demodaten für die lokale Entwicklung, solange keine Datenbank hängt.
@@ -65,7 +71,63 @@ function demoDays(slug: string, days: string[], proTag: Map<string, RelatedIncid
   });
 }
 
+/**
+ * Zwei laufende Störungen - eine zähe, eine ausgefallene.
+ *
+ * Die Demodaten zeigen bewusst den interessanten Zustand: den grünen Fall
+ * sieht man ohnehin, sobald man `STATUS_DEMO_GRUEN=1` setzt. So lässt sich
+ * lokal prüfen, ob wirklich dasteht, *was* schlechter läuft.
+ */
 const DEMO_INCIDENTS: Incident[] = [
+  {
+    id: "demo-offen-1",
+    title: "Handschrift-Erkennung antwortet nicht",
+    impact: "major",
+    status: "identified",
+    started_at: minutenHer(38),
+    resolved_at: null,
+    automatic: true,
+    service_slugs: ["scooly-handschrift"],
+    updates: [
+      {
+        id: "demo-offen-1-b",
+        status: "identified",
+        body:
+          "Fotos und Handschrift werden gerade nicht erkannt. Hochladen kannst du trotzdem, " +
+          "die Erkennung holt es nach. Die Ursache liegt beim Anbieter der Erkennung, " +
+          "der auf jede Anfrage mit HTTP 502 antwortet.",
+        created_at: minutenHer(21),
+      },
+      {
+        id: "demo-offen-1-a",
+        status: "investigating",
+        body:
+          "Der Wächter hat drei Messungen hintereinander ohne Antwort gesehen. Wir schauen uns das an.",
+        created_at: minutenHer(38),
+      },
+    ],
+  },
+  {
+    id: "demo-offen-2",
+    title: "Neue Aufgaben und Quizze brauchen länger",
+    impact: "minor",
+    status: "monitoring",
+    started_at: minutenHer(96),
+    resolved_at: null,
+    automatic: true,
+    service_slugs: ["scooly-ki"],
+    updates: [
+      {
+        id: "demo-offen-2-a",
+        status: "monitoring",
+        body:
+          "Neue Aufgaben, Quizze und Karteikarten brauchen gerade deutlich länger. " +
+          "Gemessen werden 18 Sekunden statt sonst unter 12. Erstellen funktioniert, " +
+          "es dauert nur. Wir beobachten das.",
+        created_at: minutenHer(74),
+      },
+    ],
+  },
   {
     id: "demo-1",
     title: "Karteikarten wurden langsamer erstellt",
@@ -122,6 +184,10 @@ const DEMO_INCIDENTS: Incident[] = [
   },
 ];
 
+function minutenHer(minuten: number): string {
+  return new Date(Date.now() - minuten * 60000).toISOString();
+}
+
 function daysAgo(days: number, hour: number, minute: number): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - days);
@@ -129,20 +195,57 @@ function daysAgo(days: number, hour: number, minute: number): string {
   return d.toISOString();
 }
 
+/** Wer in den Demodaten gerade Ärger hat - passend zu den offenen Vorfällen. */
+const DEMO_ZUSTAND: Record<string, ComponentStatus> = {
+  "scooly-handschrift": "major_outage",
+  "scooly-ki": "degraded_performance",
+};
+
+/**
+ * Die heutige Zeile so setzen, dass die Zahlen zur Störung passen.
+ * Sonst stünde "Größerer Ausfall" über einem makellosen Messwert - genau
+ * die Ratelücke, die diese Seite schließen soll.
+ */
+function heuteZurStoerung(zeile: UptimeDay, status: ComponentStatus, degradedMs: number): UptimeDay {
+  if (status === "major_outage" || status === "partial_outage") {
+    return {
+      ...zeile,
+      uptime: 0.974,
+      downtime_minutes: 38,
+      degraded_minutes: 0,
+      top_error: "HTTP 502",
+    };
+  }
+  if (status === "degraded_performance") {
+    return {
+      ...zeile,
+      uptime: 1,
+      downtime_minutes: 0,
+      degraded_minutes: 96,
+      avg_response_ms: Math.round(degradedMs * 1.5),
+      max_response_ms: Math.round(degradedMs * 2.3),
+      top_error: null,
+    };
+  }
+  return zeile;
+}
+
 export function demoData(): StatusPageData {
+  const alleGruen = process.env.STATUS_DEMO_GRUEN === "1";
   const days = lastNDays(90);
   const proTag = incidentsByDay(DEMO_INCIDENTS);
   return {
     services: DEFAULT_SERVICES.map((service) => {
       const d = demoDays(service.slug, days, proTag);
-      return {
-        service,
-        status: "operational" as const,
-        days: d,
-        uptime90: overallUptime(d),
-      };
+      const status = alleGruen
+        ? ("operational" as ComponentStatus)
+        : (DEMO_ZUSTAND[service.slug] ?? "operational");
+      if (status !== "operational") {
+        d[d.length - 1] = heuteZurStoerung(d[d.length - 1], status, service.degraded_ms);
+      }
+      return { service, status, days: d, uptime90: overallUptime(d) };
     }),
-    incidents: DEMO_INCIDENTS,
+    incidents: alleGruen ? DEMO_INCIDENTS.filter((i) => i.resolved_at !== null) : DEMO_INCIDENTS,
     last_checked_at: new Date().toISOString(),
     demo: true,
   };

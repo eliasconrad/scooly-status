@@ -11,16 +11,22 @@ import type { ComponentStatus } from "@/lib/types";
 export function StatusBanner({
   status,
   lastCheckedAt,
+  betroffen,
+  dicht = false,
 }: {
   status: ComponentStatus;
   lastCheckedAt: string | null;
+  /** "Betroffen: Anmeldung und Scooly KI" - null, wenn alles läuft. */
+  betroffen?: string | null;
+  /** true, wenn direkt darunter die laufende Störung steht - dann rückt sie näher. */
+  dicht?: boolean;
 }) {
   const reduce = useReducedMotion();
 
   return (
     <motion.div
       role="status"
-      className="mb-[70px] rounded-[4px] min-[651px]:mb-[100px]"
+      className={`rounded-[4px] ${dicht ? "mb-[24px]" : "mb-[70px] min-[651px]:mb-[100px]"}`}
       style={{ backgroundColor: STATUS_COLOR[status], padding: "var(--sp-band-pad)" }}
       initial={reduce ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -33,7 +39,9 @@ export function StatusBanner({
         {BANNER_LABEL[status]}
       </h2>
       <span className="block text-[14px] leading-[21px] text-white/80">
-        {lastCheckedAt ? `Zuletzt geprüft ${relativeTime(lastCheckedAt)}` : ""}
+        {[betroffen, lastCheckedAt ? `Zuletzt geprüft ${relativeTime(lastCheckedAt)}` : null]
+          .filter(Boolean)
+          .join(" · ")}
       </span>
     </motion.div>
   );

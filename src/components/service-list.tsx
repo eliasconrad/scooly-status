@@ -1,4 +1,5 @@
 import { UptimeBar } from "./uptime-bar";
+import { messwertZeile } from "@/lib/stoerung";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/uptime";
 import type { ServiceStatus } from "@/lib/types";
 
@@ -17,6 +18,15 @@ function wirkung(s: ServiceStatus): string | null {
   if (s.status === "operational") return null;
   if (s.status === "degraded_performance") return s.service.wirkung_langsam ?? null;
   return s.service.wirkung_ausfall ?? null;
+}
+
+/**
+ * Der gemessene Beleg dazu - aus der heutigen Zeile der Verfügbarkeit.
+ * Erst so wird aus "Beeinträchtigte Leistung" eine Aussage: wie langsam,
+ * wie lange, welcher Fehler.
+ */
+function messwert(s: ServiceStatus): string | null {
+  return messwertZeile(s.status, s.days[s.days.length - 1], s.service.degraded_ms);
 }
 
 export function ServiceList({ services }: { services: ServiceStatus[] }) {
@@ -53,8 +63,13 @@ export function ServiceList({ services }: { services: ServiceStatus[] }) {
               </span>
             </div>
             {wirkung(s) && (
-              <p className="pt-[2px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
+              <p className="pt-[2px] text-[14px] leading-[20px] text-[var(--sp-ink)]">
                 {wirkung(s)}
+              </p>
+            )}
+            {messwert(s) && (
+              <p className="pt-[1px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
+                {messwert(s)}
               </p>
             )}
 
