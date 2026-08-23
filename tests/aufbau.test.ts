@@ -165,17 +165,58 @@ test("die Popups stehen unter dem Balken, nicht darüber", () => {
   }
 });
 
-test("der Pfeil hat für beide Seiten die passenden Rahmenkanten", () => {
-  // Kippt Radix am Fensterrand nach oben, muss der Pfeil mitdrehen -
-  // sonst läuft die Rahmenlinie des Kastens durch den Pfeil hindurch.
+test("die Spitze ist für beide Seiten gebaut und zeigt in die richtige Richtung", () => {
+  // Kippt Radix am Fensterrand nach oben, muss die Spitze mitdrehen - sonst
+  // steht sie auf dem Kopf. Ein Rahmen-Dreieck zeigt in die Richtung, die der
+  // GEGENÜBERLIEGENDEN Kante gehört: `border-bottom` malt nach oben.
   const css = lies("src/app/globals.css");
-  const unten = css.match(/\.sp-popup\[data-side="bottom"\] \.sp-popup-arrow \{([^}]+)\}/);
-  const oben = css.match(/\.sp-popup\[data-side="top"\] \.sp-popup-arrow \{([^}]+)\}/);
-  assert.ok(unten && oben, "es fehlt eine der beiden Regeln");
-  assert.match(unten![1], /border-top/);
-  assert.match(unten![1], /border-left/);
-  assert.match(oben![1], /border-right/);
-  assert.match(oben![1], /border-bottom/);
+  const regel = (seite: string, teil: string) =>
+    css.match(
+      new RegExp(`\\.sp-popup\\[data-side="${seite}"\\] > span::${teil} \\{([^}]+)\\}`),
+    );
+
+  for (const [seite, richtung] of [
+    ["bottom", "border-bottom"],
+    ["top", "border-top"],
+  ] as const) {
+    const aussen = regel(seite, "before");
+    const innen = regel(seite, "after");
+    assert.ok(aussen && innen, `für "${seite}" fehlt eines der beiden Dreiecke`);
+    assert.match(aussen![1], new RegExp(`${richtung}: \\d+px solid var\\(--sp-rule\\)`));
+    assert.match(innen![1], new RegExp(`${richtung}: \\d+px solid var\\(--sp-bg\\)`));
+  }
+});
+
+test("das innere Dreieck ist kleiner und liegt einen Punkt tiefer", () => {
+  // Daraus entsteht der Rand von einem Punkt an den Schrägen - und die
+  // Grundlinie deckt das Stück Rahmenlinie zu, über dem die Spitze steht.
+  // Wären beide gleich gross, gäbe es keine Linie; läge das innere nicht
+  // tiefer, liefe die Rahmenlinie quer durch die Spitze.
+  const css = lies("src/app/globals.css");
+  for (const seite of ["bottom", "top"] as const) {
+    const kante = seite === "bottom" ? "top" : "bottom";
+    const zahl = (teil: string, feld: string) => {
+      const block = css.match(
+        new RegExp(`\\.sp-popup\\[data-side="${seite}"\\] > span::${teil} \\{([^}]+)\\}`),
+      );
+      const treffer = block![1].match(new RegExp(`${feld}: (-?\\d+)px`));
+      return Number(treffer![1]);
+    };
+    assert.equal(zahl("before", "border-left-width") - zahl("after", "border-left-width"), 1);
+    assert.equal(zahl("after", kante) - zahl("before", kante), 1, `${seite}: Versatz fehlt`);
+  }
+});
+
+test("der Pfeil von Radix zeichnet nichts mehr, behält aber seinen Platz", () => {
+  // Er wird weiter gebraucht: Radix schiebt ihn über den richtigen Balken,
+  // auch wenn das Popup am Fensterrand verrutscht. Verschwände er ganz,
+  // stünde die Spitze irgendwo.
+  const css = lies("src/app/globals.css");
+  const pfeil = css.match(/\.sp-popup-arrow \{([^}]+)\}/);
+  assert.ok(pfeil, "die Regel für den Pfeil fehlt");
+  assert.match(pfeil![1], /background: transparent/);
+  assert.match(pfeil![1], /fill: transparent/);
+  assert.doesNotMatch(pfeil![1], /display: none/, "ohne Platz verrutscht die Spitze");
 });
 
 test("das Popup bleibt schmal und passt auf schmale Geräte", () => {
