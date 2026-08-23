@@ -62,15 +62,6 @@ export type UptimeDay = {
   top_error: string | null;
   /** Vorfälle, die an diesem Tag diesen Dienst betrafen */
   incidents: RelatedIncident[];
-  /**
-   * true = liegt vor der ersten Messung und ist nur aufgefüllt.
-   *
-   * Rein für die Anzeige: Der Balken wird grün statt grau, damit die Leiste
-   * nicht wie kaputt aussieht. In der Datenbank steht nichts dergleichen, in
-   * die 90-Tage-Zahl geht so ein Tag nicht ein, und das Popup sagt offen,
-   * dass hier nichts gemessen wurde.
-   */
-  vorlauf?: boolean;
 };
 
 export type ServiceStatus = {

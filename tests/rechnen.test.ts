@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  BAR, farbeFuerMinuten, formatUptime, fuelleVorlauf, NO_DATA_FILL, overallUptime, tagesFarbe,
-  tagesSchwere, worstStatus,
+  BAR, farbeFuerMinuten, formatUptime, overallUptime, tagesFarbe, tagesSchwere, worstStatus,
 } from "../src/lib/uptime";
 import type { UptimeDay } from "../src/lib/types";
 
@@ -136,81 +135,4 @@ test("das Banner zeigt immer den schlechtesten Einzelstatus", () => {
   assert.equal(worstStatus(["degraded_performance", "major_outage"]), "major_outage");
   assert.equal(worstStatus(["major_outage", "partial_outage"]), "major_outage");
   assert.equal(worstStatus(["under_maintenance", "operational"]), "under_maintenance");
-});
-
-// ---- Auffüllen des Vorlaufs -------------------------------------------------
-
-function tagRoh(day: string, checks: number, over: Partial<UptimeDay> = {}): UptimeDay {
-  return {
-    day,
-    uptime: checks > 0 ? 1 : null,
-    checks,
-    downtime_minutes: 0,
-    degraded_minutes: 0,
-    avg_response_ms: checks > 0 ? 300 : null,
-    max_response_ms: checks > 0 ? 400 : null,
-    top_error: null,
-    incidents: [],
-    ...over,
-  };
-}
-
-test("die Tage vor der ersten Messung werden aufgefüllt", () => {
-  const gefuellt = fuelleVorlauf([
-    tagRoh("2026-08-20", 0),
-    tagRoh("2026-08-21", 0),
-    tagRoh("2026-08-22", 6),
-    tagRoh("2026-08-23", 6),
-  ]);
-  assert.deepEqual(
-    gefuellt.map((t) => t.vorlauf ?? false),
-    [true, true, false, false],
-  );
-});
-
-test("eine Lücke NACH der ersten Messung bleibt grau - da stand der Wächter still", () => {
-  const gefuellt = fuelleVorlauf([
-    tagRoh("2026-08-20", 0),
-    tagRoh("2026-08-21", 6),
-    tagRoh("2026-08-22", 0), // Wächter ausgefallen - muss sichtbar bleiben
-    tagRoh("2026-08-23", 6),
-  ]);
-  assert.deepEqual(
-    gefuellt.map((t) => t.vorlauf ?? false),
-    [true, false, false, false],
-  );
-  assert.equal(tagesFarbe(gefuellt[2]), NO_DATA_FILL);
-});
-
-test("ohne eine einzige Messung wird nichts aufgefüllt", () => {
-  const gefuellt = fuelleVorlauf([tagRoh("2026-08-22", 0), tagRoh("2026-08-23", 0)]);
-  assert.equal(gefuellt.every((t) => !t.vorlauf), true);
-  assert.equal(tagesFarbe(gefuellt[0]), NO_DATA_FILL);
-});
-
-test("beginnt die Leiste mit einer Messung, ändert sich nichts", () => {
-  const roh = [tagRoh("2026-08-22", 6), tagRoh("2026-08-23", 6)];
-  assert.equal(fuelleVorlauf(roh), roh, "gleiche Liste, kein unnötiges Kopieren");
-});
-
-test("aufgefüllte Tage sind grün wie ein Tag ohne Zwischenfall", () => {
-  const [vorlauf] = fuelleVorlauf([tagRoh("2026-08-22", 0), tagRoh("2026-08-23", 6)]);
-  assert.equal(vorlauf.vorlauf, true);
-  assert.equal(tagesFarbe(vorlauf), farbeFuerMinuten(0));
-});
-
-test("aufgefüllte Tage zählen NICHT in die 90-Tage-Zahl", () => {
-  const roh = [tagRoh("2026-08-22", 0), tagRoh("2026-08-23", 4, { uptime: 0.5 })];
-  const vorher = overallUptime(roh);
-  const nachher = overallUptime(fuelleVorlauf(roh));
-  assert.equal(vorher, nachher, "das Auffüllen darf die Bilanz nicht schönen");
-  assert.equal(nachher, 0.5);
-});
-
-test("aufgefüllte Tage behalten leere Messwerte - das Popup soll nichts erfinden", () => {
-  const [vorlauf] = fuelleVorlauf([tagRoh("2026-08-22", 0), tagRoh("2026-08-23", 6)]);
-  assert.equal(vorlauf.checks, 0);
-  assert.equal(vorlauf.uptime, null);
-  assert.equal(vorlauf.avg_response_ms, null);
-  assert.equal(vorlauf.downtime_minutes, 0);
 });

@@ -5,6 +5,7 @@ import {
   bannerBetroffen,
   betroffeneDienste,
   dienstNamen,
+  ersterMesstag,
   formatDauer,
   formatMs,
   istOffen,
@@ -185,4 +186,34 @@ test("Ausfallstatus ohne Ausfallminuten nennt wenigstens den Fehler", () => {
     "Letzter Fehler: HTTP 500.",
   );
   assert.equal(messwertZeile("major_outage", tag({ downtime_minutes: 0 }), 2500), null);
+});
+
+test("der erste Messtag wird nur genannt, wenn davor graue Tage stehen", () => {
+  const s = dienst("a", "A", "operational");
+  s.days = [
+    tag({ day: "2026-08-21", checks: 0, uptime: null }),
+    tag({ day: "2026-08-22", checks: 0, uptime: null }),
+    tag({ day: "2026-08-23", checks: 6 }),
+  ];
+  assert.equal(ersterMesstag([s]), "2026-08-23");
+});
+
+test("ist die ganze Leiste gemessen, steht kein Hinweis da", () => {
+  const s = dienst("a", "A", "operational");
+  s.days = [tag({ day: "2026-08-22", checks: 4 }), tag({ day: "2026-08-23", checks: 6 })];
+  assert.equal(ersterMesstag([s]), null);
+});
+
+test("wurde nie gemessen, gibt es auch nichts zu erklären", () => {
+  const s = dienst("a", "A", "operational");
+  s.days = [tag({ day: "2026-08-22", checks: 0, uptime: null })];
+  assert.equal(ersterMesstag([s]), null);
+});
+
+test("der früheste Messtag über alle Dienste zählt", () => {
+  const a = dienst("a", "A", "operational");
+  a.days = [tag({ day: "2026-08-21", checks: 0, uptime: null }), tag({ day: "2026-08-22", checks: 3 })];
+  const b = dienst("b", "B", "operational");
+  b.days = [tag({ day: "2026-08-21", checks: 0, uptime: null }), tag({ day: "2026-08-22", checks: 0, uptime: null })];
+  assert.equal(ersterMesstag([a, b]), "2026-08-22");
 });

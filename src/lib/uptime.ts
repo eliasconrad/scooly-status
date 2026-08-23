@@ -37,56 +37,9 @@ export function tagesSchwere(tag: Pick<UptimeDay, "uptime" | "downtime_minutes" 
   return aus + zaeh * ZAEH_GEWICHT;
 }
 
-export function tagesFarbe(
-  tag: Pick<UptimeDay, "uptime" | "checks" | "downtime_minutes" | "degraded_minutes" | "vorlauf">,
-): string {
-  // Aufgefüllter Vorlauf: grün wie ein Tag ohne Zwischenfall. Bewusst
-  // dieselbe Farbe und nicht ein eigener Ton - die Leiste soll durchgehend
-  // aussehen. Was dahintersteckt, sagt das Popup.
-  if (tag.vorlauf) return farbeFuerMinuten(0);
+export function tagesFarbe(tag: Pick<UptimeDay, "uptime" | "checks" | "downtime_minutes" | "degraded_minutes">): string {
   if (tag.uptime === null || tag.checks === 0) return NO_DATA_FILL;
   return farbeFuerMinuten(tagesSchwere(tag));
-}
-
-/**
- * Die Tage vor der ersten Messung grün auffüllen.
- *
- * Streng auf den Vorlauf begrenzt: Sobald einmal gemessen wurde, bleibt jede
- * spätere Lücke grau - ein Tag, an dem der Wächter stillstand, ist etwas
- * anderes als ein Tag, an dem es ihn noch nicht gab, und diese Lücke muss
- * sichtbar bleiben. Wurde nie gemessen, wird nichts aufgefüllt: Ohne einen
- * einzigen echten Tag gäbe es nichts, woran das hinge.
- *
- * Ändert nur die Anzeige. Die aufgefüllten Tage behalten `checks: 0` und
- * `uptime: null` und zählen deshalb nirgends mit - weder in `overallUptime`
- * noch im Popup.
- */
-export function fuelleVorlauf(days: UptimeDay[], ersteMessung?: string | null): UptimeDay[] {
-  // Ohne Angabe: aus den Tagen selbst ablesen. Das reicht für die Startseite,
-  // die immer alle 90 Tage in der Hand hat. Der Verfügbarkeits-Kalender
-  // blättert dagegen in ältere Quartale, in denen keine einzige Messung
-  // liegt - der muss den Stichtag mitbringen, sonst füllt er nichts auf.
-  const stichtag = ersteMessung === undefined ? ersterMesstag(days) : ersteMessung;
-  if (!stichtag) return days;
-
-  let veraendert = false;
-  const gefuellt = days.map((tag) => {
-    if (tag.checks === 0 && tag.day < stichtag) {
-      veraendert = true;
-      return { ...tag, vorlauf: true };
-    }
-    return tag;
-  });
-  return veraendert ? gefuellt : days;
-}
-
-/** Der früheste Tag mit einer echten Messung, oder null. */
-export function ersterMesstag(days: UptimeDay[]): string | null {
-  let frueheste: string | null = null;
-  for (const tag of days) {
-    if (tag.checks > 0 && (frueheste === null || tag.day < frueheste)) frueheste = tag.day;
-  }
-  return frueheste;
 }
 
 export function farbeFuerMinuten(minuten: number): string {

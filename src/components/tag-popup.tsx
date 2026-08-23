@@ -12,9 +12,7 @@ import type { UptimeDay } from "@/lib/types";
  *
  * Wichtig: Hier wird nur gezeigt, was auch gemessen wurde. Steht in der
  * Tagesbilanz nichts, sagt das Popup genau das - und behauptet nicht,
- * es habe keine Ausfälle gegeben. Das gilt auch für die grün aufgefüllten
- * Tage vor der ersten Messung: Der Balken ist grün, hier steht trotzdem,
- * dass da nichts gemessen wurde.
+ * es habe keine Ausfälle gegeben.
  */
 export function TagPopup({ tag }: { tag: UptimeDay }) {
   const felder: { label: string; farbe: string; minuten: number }[] = [];
@@ -44,11 +42,7 @@ export function TagPopup({ tag }: { tag: UptimeDay }) {
         {datum(tag.day)}
       </div>
 
-      {tag.vorlauf ? (
-        <p className="mt-[6px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
-          Dieser Tag liegt vor dem Beginn der Messung.
-        </p>
-      ) : ohneMessung ? (
+      {ohneMessung ? (
         <p className="mt-[6px] text-[14px] leading-[20px] text-[var(--sp-muted)]">
           Für diesen Tag liegen keine Messdaten vor.
         </p>

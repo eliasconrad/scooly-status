@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import { ersterMesstag, fuelleVorlauf, overallUptime } from "./uptime";
+import { overallUptime } from "./uptime";
 import { incidentsByDay } from "./vorfaelle";
 import type { Incident, RelatedIncident, Service, UptimeDay } from "./types";
 
@@ -57,7 +57,6 @@ export function buildMonth(
   today = new Date(),
   vorfaelleProTag: Map<string, RelatedIncident[]> = new Map(),
   slug = "",
-  ersteMessung: string | null = null,
 ): CalendarMonth {
   const first = new Date(Date.UTC(ref.year, ref.month, 1));
   const daysInMonth = new Date(Date.UTC(ref.year, ref.month + 1, 0)).getUTCDate();
@@ -90,24 +89,7 @@ export function buildMonth(
     });
   }
 
-  // Auffüllen zum Schluss, mit dem Stichtag von außen: Dieses Blatt kann
-  // vollständig vor der ersten Messung liegen und wüsste allein nichts davon.
-  // Die Monatsbilanz oben rechnet weiter mit `measured`, also den echten
-  // Zeilen - aufgefüllte Tage gehen dort nicht ein.
-  const gefuellt = fuelleVorlauf(
-    cells.map((zelle) => zelle?.tag).filter((tag): tag is UptimeDay => Boolean(tag)),
-    ersteMessung,
-  );
-  const nachTag = new Map(gefuellt.map((tag) => [tag.day, tag]));
-
-  return {
-    ref,
-    label: monthName(ref),
-    uptime: overallUptime(measured),
-    cells: cells.map((zelle) =>
-      zelle ? { ...zelle, tag: nachTag.get(zelle.tag.day) ?? zelle.tag } : zelle,
-    ),
-  };
+  return { ref, label: monthName(ref), uptime: overallUptime(measured), cells };
 }
 
 export type UptimeCalendar = {
@@ -138,13 +120,10 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
       (data.services.find((s) => s.service.slug === selected.slug)?.days ?? []).map((d) => [d.day, d]),
     );
     const proTag = incidentsByDay(data.incidents);
-    const ersteMessung = ersterMesstag([...byDay.values()]);
     return {
       services,
       selected,
-      months: months.map((m) =>
-        buildMonth(m, byDay, new Date(), proTag, selected.slug, ersteMessung),
-      ),
+      months: months.map((m) => buildMonth(m, byDay, new Date(), proTag, selected.slug)),
       page,
       demo: true,
     };
@@ -180,18 +159,6 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
     .eq("service_slug", selected.slug)
     .gte("day", from)
     .lte("day", to);
-
-  // Der Stichtag, ab dem überhaupt gemessen wird. Eigene Abfrage, weil das
-  // angezeigte Quartal komplett davor liegen kann - dann steht in `uptimeRows`
-  // nichts, woraus sich der Tag ablesen ließe.
-  const { data: ersteZeile } = await db
-    .from("daily_uptime")
-    .select("day")
-    .eq("service_slug", selected.slug)
-    .gt("checks", 0)
-    .order("day", { ascending: true })
-    .limit(1);
-  const ersteMessung = (ersteZeile?.[0]?.day as string | undefined) ?? null;
 
   const { data: incidentRows } = await db
     .from("incidents")
@@ -233,9 +200,7 @@ export async function getUptimeCalendar(slug: string | undefined, page: number):
   return {
     services,
     selected,
-    months: months.map((m) =>
-      buildMonth(m, byDay, new Date(), proTag, selected.slug, ersteMessung),
-    ),
+    months: months.map((m) => buildMonth(m, byDay, new Date(), proTag, selected.slug)),
     page,
     demo: false,
   };
