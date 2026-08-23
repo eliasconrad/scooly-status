@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { beschreibungAusfall, beschreibungLangsam } from "../src/lib/checker";
 import { zeit } from "../src/lib/zeit";
+import { readFileSync } from "node:fs";
 
 const dienst = { name: "Scooly KI", degraded_ms: 12000 };
 
@@ -132,4 +133,12 @@ test("die Auswirkung sagt auch, was trotzdem noch geht", () => {
   for (const satz of [kiMitWirkung.wirkung_ausfall]) {
     assert.match(satz, /Was schon da ist/);
   }
+});
+
+test("die Dauer im Behoben-Text steht in richtigem Deutsch", () => {
+  // Stand am 23.08. in einer echten Mail: "Dauer: rund 1 Minuten".
+  // Und bei einem längeren Ausfall hätte dort "rund 187 Minuten" gestanden.
+  const quelle = readFileSync(new URL("../src/lib/checker.ts", import.meta.url), "utf8");
+  assert.match(quelle, /Dauer: rund \$\{formatDauer\(minutes\)\}/);
+  assert.doesNotMatch(quelle, /\$\{minutes\} Minuten/);
 });

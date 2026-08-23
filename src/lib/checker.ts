@@ -6,6 +6,7 @@ import {
   meldungsText,
   nochAktuell,
 } from "./meldungen";
+import { formatDauer } from "./stoerung";
 import { supabase } from "./supabase";
 import { notifyTelegram } from "./telegram";
 import { STATUS_LABEL } from "./uptime";
@@ -272,7 +273,10 @@ async function entscheiden(
     case "vorfall_schliessen": {
       const startedAt = new Date(open.started_at as string);
       const minutes = Math.max(1, Math.round((Date.now() - startedAt.getTime()) / 60000));
-      const body = `Der Vorfall ist behoben. ${service.name} läuft seit ${RECOVER_STREAK} Messungen wieder normal. Dauer: rund ${minutes} Minuten.`;
+      // Die Dauer geht durch `formatDauer`, statt die Zahl roh anzuhängen:
+      // Sonst stand in der Mail "Dauer: rund 1 Minuten" - und bei einem
+      // längeren Ausfall "rund 187", was niemand im Kopf umrechnet.
+      const body = `Der Vorfall ist behoben. ${service.name} läuft seit ${RECOVER_STREAK} Messungen wieder normal. Dauer: rund ${formatDauer(minutes)}.`;
 
       await db
         .from("incidents")
