@@ -233,3 +233,20 @@ test("die Messwerte stehen in einer Zeile, nicht als Liste", () => {
   assert.doesNotMatch(popup, /<dl/, "eine Definitionsliste treibt die Höhe hoch");
   assert.match(popup, /gemessen\.join\(" · "\)/);
 });
+
+test("das Anmeldeformular begrenzt die Länge der Adresse", () => {
+  // Am 23.08. beim Prüfen: Eine 5012 Zeichen lange "Adresse" bestand die
+  // Musterprüfung und landete in der Datenbank. 254 ist das Maximum nach
+  // RFC 5321.
+  const route = lies("src/app/api/subscribe/route.ts");
+  assert.match(route, /email\.length > 254/);
+});
+
+test("das Anmeldeformular hat eine Bremse je Absender", () => {
+  // Die Sperrfrist gilt je Adresse und hält niemanden auf, der zehntausend
+  // verschiedene Adressen einträgt - jede davon eine echte Mail von unserer
+  // Domain.
+  const route = lies("src/app/api/subscribe/route.ts");
+  assert.match(route, /abosBremse/);
+  assert.match(route, /status: 429/);
+});
