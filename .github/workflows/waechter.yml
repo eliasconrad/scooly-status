@@ -5,24 +5,23 @@ name: Wächter
 # Vercel Cron in vercel.json ist nur die Rückfallebene (Hobby-Tarif erlaubt
 # dort ohnehin nur einen Lauf pro Tag).
 #
-# WARUM ALLE 30 UND NICHT ALLE 5 MINUTEN: Zwei Gründe, beide gemessen.
+# WARUM DAS REPO ÖFFENTLICH IST: Für private Repos sind 2000 Actions-Minuten
+# im Monat frei, und jeder Lauf wird auf eine volle Minute aufgerundet, obwohl
+# er 5 bis 15 Sekunden dauert. Alle fünf Minuten wären 8640 Minuten - das
+# Vierfache. Ohne hinterlegte Zahlungsweise hätte GitHub die Actions dann bis
+# zum Monatsende abgestellt, und die Statusseite wäre ab dem 7. stumm.
+# Für öffentliche Repos sind Actions unbegrenzt frei. Deshalb liegt der Code
+# offen; die Schlüssel liegen in GitHub Secrets und bei Vercel und sind davon
+# unberührt (am 23.08. gegen die ganze Historie und die Protokolle geprüft).
 #
-#   1. GitHub hält den Takt gar nicht ein. Mit "*/5" kamen am 23.08. real
-#      Abstände von 20 bis 40 Minuten heraus - geplante Läufe werden
-#      gedrosselt und fallen unter Last auch aus.
-#   2. Jeder Lauf wird auf eine volle Minute aufgerundet, obwohl er 5 bis 15
-#      Sekunden dauert. Bei einem privaten Repo sind 2000 Minuten im Monat
-#      frei; alle fünf Minuten wären 8640. Ohne hinterlegte Zahlungsweise
-#      stellt GitHub die Actions dann bis zum Monatsende ab - eine
-#      Statusseite, die ab dem 7. schweigt, ist schlimmer als eine, die
-#      halbstündlich misst.
-#
-# Alle 30 Minuten sind 1440 Minuten im Monat und passen sicher hinein.
-# Für einen echten Fünf-Minuten-Takt braucht es einen Auslöser von aussen
-# (siehe README) - dieser Lauf bleibt dann als Netz darunter bestehen.
+# ACHTUNG BEIM ÄNDERN: Der Takt hier muss zu CHECK_INTERVAL_MINUTES passen -
+# daraus rechnet rollup_day die Ausfallminuten. Ein Test vergleicht beide.
+# GitHub hält den Takt übrigens nicht genau ein; unter Last kommen Läufe
+# später oder fallen aus. Das ist hier verkraftbar, weil aus drei
+# Fehlmessungen hintereinander ein Vorfall wird und nicht aus einer Uhrzeit.
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
