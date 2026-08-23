@@ -1,7 +1,7 @@
 import { demoData, lastNDays } from "./demo";
 import { hasDatabase, supabase } from "./supabase";
 import { incidentsByDay } from "./vorfaelle";
-import { overallUptime } from "./uptime";
+import { fuelleVorlauf, overallUptime } from "./uptime";
 import type {
   ComponentStatus,
   Incident,
@@ -89,7 +89,9 @@ export async function getStatusPageData(incidentDays = INCIDENT_DAYS_ON_HOME): P
     return {
       service,
       status: (row.status ?? "operational") as ComponentStatus,
-      days: dayRows,
+      // Auffüllen erst hier, ganz am Rand: Die Bilanz rechnet mit den echten
+      // Zeilen, nur die Leiste bekommt den grünen Vorlauf.
+      days: fuelleVorlauf(dayRows),
       uptime90: overallUptime(dayRows),
     };
   });

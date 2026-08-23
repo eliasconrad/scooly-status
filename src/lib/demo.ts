@@ -1,5 +1,5 @@
 import { DEFAULT_SERVICES } from "./services";
-import { overallUptime } from "./uptime";
+import { fuelleVorlauf, overallUptime } from "./uptime";
 import { incidentsByDay } from "./vorfaelle";
 import type {
   ComponentStatus,
@@ -243,7 +243,7 @@ export function demoData(): StatusPageData {
       if (status !== "operational") {
         d[d.length - 1] = heuteZurStoerung(d[d.length - 1], status, service.degraded_ms);
       }
-      return { service, status, days: d, uptime90: overallUptime(d) };
+      return { service, status, days: fuelleVorlauf(d), uptime90: overallUptime(d) };
     }),
     incidents: alleGruen ? DEMO_INCIDENTS.filter((i) => i.resolved_at !== null) : DEMO_INCIDENTS,
     last_checked_at: new Date().toISOString(),
