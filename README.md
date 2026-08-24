@@ -231,7 +231,53 @@ Entscheidungslogik dahinter ist durch die Tests abgedeckt.
 3. Bei Vercel deployen (Repo: `eliasconrad/scooly-status`), Domain `status.scooly.dev`
    verbinden.
 4. In den GitHub-Secrets `CRON_SECRET` und `STATUS_URL` hinterlegen -
-   dann läuft `.github/workflows/waechter.yml` von selbst.
+   dann läuft `.github/workflows/waechter.yml` als Rückfallebene von selbst.
+5. Den externen Cron einrichten, der den eigentlichen Takt hält - siehe
+   nächsten Abschnitt.
+
+### Der Takt des Wächters
+
+Takt des externen Crons: **alle 5 Minuten** (muss zu `CHECK_INTERVAL_MINUTES=5`
+in `.env.local` und bei Vercel passen - `rollup_day` bucht pro Fehlmessung
+genau diese Minutenzahl an Ausfallzeit).
+
+**Warum nicht GitHub Actions.** Das war bis zum 24.08.2026 der Plan und hat
+nicht funktioniert. GitHub behandelt `schedule` als Bitte und reiht die Läufe
+unter Last hinten an. Gemessen an 62 Messrunden binnen 24 Stunden:
+
+| | |
+|---|---|
+| kürzester Abstand | 1,2 min |
+| Median | 18,5 min |
+| längster Abstand | 83,5 min |
+| Abstände unter 6 min | 5 von 61 |
+
+Damit stimmte nichts mehr: Die ausgewiesene Uptime war zu gut, weil jede
+Fehlmessung nur mit 5 statt mit rund 18 Minuten in die Bilanz ging. Und aus
+"drei Fehlmessungen hintereinander" wurde im Median knapp eine Stunde, bis
+überhaupt ein Vorfall entstand - bei einem echten Ausfall also die Meldung,
+nachdem er vorbei ist.
+
+**Einrichtung bei cron-job.org** (kostenlos, Minutentakt, eigenes Konto):
+
+- Titel: `Scooly Wächter`
+- URL: `https://status.scooly.dev/api/check`
+- Zeitplan: alle 5 Minuten
+- Erweitert → Header: `Authorization: Bearer <CRON_SECRET>`
+- Benachrichtigung bei Fehlschlag an: `hallo@eliasconrad.eu`
+
+Der Cron liegt bewusst **nicht** bei Vercel. Ein Wächter auf derselben
+Plattform wie das Überwachte schweigt genau dann, wenn es darauf ankommt -
+derselbe Grund, aus dem er vorher bei GitHub lag. `vercel.json` behält seinen
+einen Lauf pro Tag (mehr erlaubt der Hobby-Tarif nicht), der GitHub-Workflow
+bleibt daneben stehen. Drei Quellen, die dasselbe tun; doppelte Messungen
+schaden nicht, weil jede eine echte Messung ist und die Bewertung Messungen
+zählt und keine Uhrzeiten.
+
+**Noch offen:** Es gibt keine Warnung, wenn der Wächter ganz verstummt. Fällt
+der Cron aus, zeigt die Seite den letzten bekannten Zustand weiter an - grün
+und stundenalt. Der Balken nennt zwar "Zuletzt geprüft vor ...", aber nichts
+stuft die Seite herab, wenn diese Angabe zu alt wird.
 
 ### Noch offen: die Health-Endpunkte in Scooly
 

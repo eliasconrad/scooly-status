@@ -14,11 +14,27 @@ name: Wächter
 # offen; die Schlüssel liegen in GitHub Secrets und bei Vercel und sind davon
 # unberührt (am 23.08. gegen die ganze Historie und die Protokolle geprüft).
 #
-# ACHTUNG BEIM ÄNDERN: Der Takt hier muss zu CHECK_INTERVAL_MINUTES passen -
-# daraus rechnet rollup_day die Ausfallminuten. Ein Test vergleicht beide.
-# GitHub hält den Takt übrigens nicht genau ein; unter Last kommen Läufe
-# später oder fallen aus. Das ist hier verkraftbar, weil aus drei
-# Fehlmessungen hintereinander ein Vorfall wird und nicht aus einer Uhrzeit.
+# NUR NOCH RÜCKFALLEBENE, SEIT 24.08.2026: Der Takt unten ist eine Bitte,
+# keine Zusage. Gemessen an 62 Messrunden der 24 Stunden davor lag der
+# Abstand im Median bei 18,5 Minuten, im schlechtesten Fall bei 83,5 - nur
+# 5 von 61 Abständen lagen unter 6 Minuten. GitHub reiht `schedule`-Läufe
+# unter Last hinten an, nachts am stärksten.
+#
+# Das war nicht bloß ungenau, es rechnete falsch: `rollup_day` bucht pro
+# Fehlmessung CHECK_INTERVAL_MINUTES an Ausfallzeit. Bei 5 eingetragenen
+# und 18 tatsächlichen Minuten kam ein Ausfall nur zu gut einem Viertel in
+# der Uptime an. Und "drei Fehlmessungen hintereinander" hieß dann nicht
+# nach einer Viertelstunde, sondern im Median nach knapp einer Stunde.
+#
+# Den Takt hält jetzt ein externer Cron (siehe README, Abschnitt "Der Takt
+# des Wächters"). Der liegt weiterhin außerhalb von Vercel - das war der
+# Grund, den Wächter nicht dort laufen zu lassen, und der gilt unverändert.
+# Dieser Workflow bleibt daneben stehen, damit der Wächter nicht an einem
+# einzigen fremden Dienst hängt. Doppelte Messungen schaden nicht: jede ist
+# eine echte Messung, und die Bewertung zählt Messungen, keine Uhrzeiten.
+#
+# ACHTUNG BEIM ÄNDERN: CHECK_INTERVAL_MINUTES muss zum Takt des externen
+# Crons passen, nicht zu dem hier. Ein Test vergleicht beide.
 on:
   schedule:
     - cron: "*/5 * * * *"

@@ -29,10 +29,19 @@ test("jede Umgebungsvariable, die der Code liest, steht in .env.example", () => 
   assert.deepEqual(fehlend, [], `nicht dokumentiert: ${fehlend.join(", ")}`);
 });
 
-test("der Messtakt im Code und im Wächter-Zeitplan passen zusammen", () => {
-  const workflow = lies(".github/workflows/waechter.yml");
-  const takt = workflow.match(/cron:\s*"\*\/(\d+) \* \* \* \*"/);
-  assert.ok(takt, "kein Minutentakt im Zeitplan gefunden");
+/*
+ * Vorher stand hier der Vergleich mit dem cron-Ausdruck in
+ * `.github/workflows/waechter.yml`. Der Test war grün und trotzdem wertlos:
+ * GitHub hielt den Takt nie ein (Median 18,5 statt 5 Minuten), der Test
+ * verglich also zwei Zahlen, von denen die eine gar nichts über die
+ * Wirklichkeit aussagte. Maßgeblich ist seit 24.08.2026 der externe Cron,
+ * und der steht nirgends im Repo - nur seine Einrichtung im README. Also
+ * wird dagegen geprüft.
+ */
+test("der Messtakt im Code und der eingerichtete Cron passen zusammen", () => {
+  const readme = lies("README.md");
+  const takt = readme.match(/Takt des externen Crons: \*\*alle (\d+) Minuten\*\*/);
+  assert.ok(takt, "der Takt des externen Crons ist im README nicht festgehalten");
 
   const beispiel = lies(".env.example");
   const minuten = beispiel.match(/^CHECK_INTERVAL_MINUTES=(\d+)/m);
