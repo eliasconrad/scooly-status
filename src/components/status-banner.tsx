@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { BANNER_LABEL, STATUS_COLOR } from "@/lib/uptime";
+import { SCHWEIGE_FARBE, SCHWEIGE_TEXT, schweigeHinweis } from "@/lib/schweigen";
 import type { ComponentStatus } from "@/lib/types";
 
 /**
@@ -13,6 +14,7 @@ export function StatusBanner({
   lastCheckedAt,
   betroffen,
   dicht = false,
+  schweigt = false,
 }: {
   status: ComponentStatus;
   lastCheckedAt: string | null;
@@ -20,6 +22,12 @@ export function StatusBanner({
   betroffen?: string | null;
   /** true, wenn direkt darunter die laufende Störung steht - dann rückt sie näher. */
   dicht?: boolean;
+  /**
+   * true, wenn seit zu langer Zeit nicht gemessen wurde. Dann wird das Band
+   * grau und sagt das - siehe `lib/schweigen.ts`. Entschieden wird das auf
+   * dem Server, damit App und Seite nicht auseinanderlaufen.
+   */
+  schweigt?: boolean;
 }) {
   const reduce = useReducedMotion();
 
@@ -27,7 +35,10 @@ export function StatusBanner({
     <motion.div
       role="status"
       className={`rounded-[4px] ${dicht ? "mb-[24px]" : "mb-[70px] min-[651px]:mb-[100px]"}`}
-      style={{ backgroundColor: STATUS_COLOR[status], padding: "var(--sp-band-pad)" }}
+      style={{
+        backgroundColor: schweigt ? SCHWEIGE_FARBE : STATUS_COLOR[status],
+        padding: "var(--sp-band-pad)",
+      }}
       initial={reduce ? false : { opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
@@ -36,10 +47,13 @@ export function StatusBanner({
         className="font-medium text-white"
         style={{ fontSize: "var(--sp-band-size)", lineHeight: "var(--sp-band-line)" }}
       >
-        {BANNER_LABEL[status]}
+        {schweigt ? SCHWEIGE_TEXT : BANNER_LABEL[status]}
       </h2>
       <span className="block text-[14px] leading-[21px] text-white/80">
-        {[betroffen, lastCheckedAt ? `Zuletzt geprüft ${relativeTime(lastCheckedAt)}` : null]
+        {[
+          schweigt ? schweigeHinweis(lastCheckedAt) : betroffen,
+          lastCheckedAt ? `Zuletzt geprüft ${relativeTime(lastCheckedAt)}` : null,
+        ]
           .filter(Boolean)
           .join(" · ")}
       </span>

@@ -1,4 +1,5 @@
 import { getStatusPageData } from "./status";
+import { SCHWEIGE_FARBE, SCHWEIGE_TEXT, schweigeHinweis, waechterSchweigt } from "./schweigen";
 import { neuesteMeldung, offeneVorfaelle, seitText } from "./stoerung";
 import { BANNER_LABEL, STATUS_LABEL, worstStatus } from "./uptime";
 import type { ComponentStatus, StatusPageData } from "./types";
@@ -36,6 +37,14 @@ export type Zustand = {
   seite: string;
   /** Wann zuletzt gemessen wurde, ISO - null, wenn noch nie. */
   geprueft: string | null;
+  /**
+   * true, wenn seit zu langer Zeit nicht gemessen wurde.
+   *
+   * Dann sind `text` und `farbe` bereits die grauen - die App muss nichts
+   * selbst entscheiden. Das Feld steht trotzdem dabei, damit sie den Fall
+   * von einer echten Störung unterscheiden kann, falls sie das je will.
+   */
+  waechter_schweigt: boolean;
   dienste: { slug: string; name: string; status: ComponentStatus; text: string }[];
   stoerungen: {
     titel: string;
@@ -46,17 +55,41 @@ export type Zustand = {
   }[];
 };
 
-export function baueZustand(daten: StatusPageData, seite: string, jetzt = new Date()): Zustand {
+/**
+ * Der Takt, in dem gemessen wird - dieselbe Zahl wie in `checker.ts`.
+ *
+ * Steht hier nochmal, weil `checker.ts` beim Import den Wächter mitzieht
+ * (Mail, Telegram, Supabase) und diese Datei auch dort gelesen wird, wo nur
+ * die Kurzfassung gebraucht wird.
+ */
+export const TAKT_MINUTEN = Number(process.env.CHECK_INTERVAL_MINUTES ?? 5);
+
+export function baueZustand(
+  daten: StatusPageData,
+  seite: string,
+  jetzt = new Date(),
+  taktMinuten = TAKT_MINUTEN,
+): Zustand {
   const status = worstStatus(daten.services.map((s) => s.status));
   const namen = new Map(daten.services.map((s) => [s.service.slug, s.service.name]));
 
+  /*
+   * SCHWEIGEN SCHLÄGT ALLES ANDERE: Ohne frische Messung ist auch ein
+   * gespeichertes "operational" nur eine Erinnerung. `alles_gut` muss dann
+   * false sein - daran hängt in der App, ob das Banner überhaupt erscheint,
+   * und "wir wissen es gerade nicht" gehört genauso ins Bild wie eine
+   * Störung. Ein stiller Wächter darf nicht stiller sein als ein Ausfall.
+   */
+  const schweigt = waechterSchweigt(daten.last_checked_at, taktMinuten, jetzt);
+
   return {
     status,
-    text: BANNER_LABEL[status],
-    farbe: ZUSTAND_FARBE[status],
-    alles_gut: status === "operational",
+    text: schweigt ? SCHWEIGE_TEXT : BANNER_LABEL[status],
+    farbe: schweigt ? SCHWEIGE_FARBE : ZUSTAND_FARBE[status],
+    alles_gut: !schweigt && status === "operational",
     seite,
     geprueft: daten.last_checked_at,
+    waechter_schweigt: schweigt,
     dienste: daten.services.map((s) => ({
       slug: s.service.slug,
       name: s.service.name,

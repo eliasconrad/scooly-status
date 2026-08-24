@@ -12,6 +12,15 @@ function dienst(slug: string, name: string, status: ComponentStatus): ServiceSta
   };
 }
 
+/*
+ * Feste Uhr statt der echten. Vorher stand hier ein fester Zeitstempel und
+ * `baueZustand` rechnete gegen `new Date()` - die Messung wurde also mit
+ * jedem Tag älter, und seit der Wächter auch verstummen kann, wäre der Test
+ * von selbst rot geworden. Ein Test, dessen Ergebnis vom Kalender abhängt,
+ * prüft nicht das, was er zu prüfen vorgibt.
+ */
+const JETZT = new Date("2026-08-23T08:02:00.000Z");
+
 function daten(over: Partial<StatusPageData> = {}): StatusPageData {
   return {
     services: [dienst("a", "Anmeldung", "operational")],
@@ -25,7 +34,7 @@ function daten(over: Partial<StatusPageData> = {}): StatusPageData {
 const SEITE = "https://status.scooly.dev";
 
 test("läuft alles, sagt es das in einem Satz und in Grün", () => {
-  const z = baueZustand(daten(), SEITE);
+  const z = baueZustand(daten(), SEITE, JETZT);
   assert.equal(z.status, "operational");
   assert.equal(z.text, "Alle Systeme betriebsbereit");
   assert.equal(z.farbe, "#76ad2a");
@@ -43,6 +52,7 @@ test("der schlechteste Dienst bestimmt Farbe und Satz", () => {
       ],
     }),
     SEITE,
+    JETZT,
   );
   assert.equal(z.status, "major_outage");
   assert.equal(z.farbe, ZUSTAND_FARBE.major_outage);

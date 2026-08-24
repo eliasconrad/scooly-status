@@ -274,10 +274,16 @@ bleibt daneben stehen. Drei Quellen, die dasselbe tun; doppelte Messungen
 schaden nicht, weil jede eine echte Messung ist und die Bewertung Messungen
 zählt und keine Uhrzeiten.
 
-**Noch offen:** Es gibt keine Warnung, wenn der Wächter ganz verstummt. Fällt
-der Cron aus, zeigt die Seite den letzten bekannten Zustand weiter an - grün
-und stundenalt. Der Balken nennt zwar "Zuletzt geprüft vor ...", aber nichts
-stuft die Seite herab, wenn diese Angabe zu alt wird.
+**Wenn der Wächter verstummt.** Bleibt die letzte Messung länger als drei
+Takte aus (bei 5 Minuten also eine Viertelstunde), wird das Band grau und sagt
+"Zustand unbekannt" statt "Alle Systeme betriebsbereit". Die Dienstliste
+darunter bleibt stehen - sie wurde ja wirklich gemessen, sie ist nur alt.
+
+Das ist bewusst keine der fünf Stufen und keine Störung: Es wird nicht
+behauptet, Scooly sei kaputt, sondern dass es gerade niemand weiß. Rot wäre
+genauso erfunden wie grün. Die Regel steht in `src/lib/schweigen.ts`, die App
+bekommt sie über `/api/zustand` fertig geliefert (`waechter_schweigt`, dazu
+grauer `text` und `farbe`) und entscheidet nichts selbst.
 
 ### Noch offen: die Health-Endpunkte in Scooly
 

@@ -9,6 +9,8 @@ import { lastNDays } from "@/lib/demo";
 import { getStatusPageData, INCIDENT_DAYS_ON_HOME } from "@/lib/status";
 import type { StatusPageData } from "@/lib/types";
 import { bannerBetroffen, offeneVorfaelle } from "@/lib/stoerung";
+import { waechterSchweigt } from "@/lib/schweigen";
+import { TAKT_MINUTEN } from "@/lib/zustand";
 import { worstStatus } from "@/lib/uptime";
 
 /** Alle 60 Sekunden neu bauen - der Wächter misst alle 5 Minuten. */
@@ -45,6 +47,7 @@ export default async function Page() {
             lastCheckedAt={data.last_checked_at}
             betroffen={bannerBetroffen(data.services)}
             dicht={offeneVorfaelle(data.incidents).length > 0}
+            schweigt={waechterSchweigt(data.last_checked_at, TAKT_MINUTEN)}
           />
           <AktuelleStoerung incidents={data.incidents} services={data.services} />
           <ServiceList services={data.services} />
