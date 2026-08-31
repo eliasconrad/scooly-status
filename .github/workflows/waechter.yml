@@ -7,8 +7,8 @@ name: Wächter
 #
 # WARUM DAS REPO ÖFFENTLICH IST: Für private Repos sind 2000 Actions-Minuten
 # im Monat frei, und jeder Lauf wird auf eine volle Minute aufgerundet, obwohl
-# er 5 bis 15 Sekunden dauert. Alle fünf Minuten wären 8640 Minuten - das
-# Vierfache. Ohne hinterlegte Zahlungsweise hätte GitHub die Actions dann bis
+# er 5 bis 15 Sekunden dauert. Alle zehn Minuten wären 4320 Minuten - mehr als
+# das Doppelte (bei den fünf Minuten von vorher war es das Vierfache). Ohne hinterlegte Zahlungsweise hätte GitHub die Actions dann bis
 # zum Monatsende abgestellt, und die Statusseite wäre ab dem 7. stumm.
 # Für öffentliche Repos sind Actions unbegrenzt frei. Deshalb liegt der Code
 # offen; die Schlüssel liegen in GitHub Secrets und bei Vercel und sind davon
@@ -37,7 +37,7 @@ name: Wächter
 # Crons passen, nicht zu dem hier. Ein Test vergleicht beide.
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:

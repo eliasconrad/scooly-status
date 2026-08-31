@@ -183,7 +183,7 @@ async function main() {
     }
     ok("rollup_day liefert Antwortzeit und Fehlertext für die Diagnose");
 
-    // Noch einmal aufrufen - der Wächter macht das alle fünf Minuten.
+    // Noch einmal aufrufen - der Wächter macht das alle zehn Minuten.
     const { error: e5b } = await db.rpc("rollup_day", {
       p_slug: PRUEFDIENST, p_day: tag, p_interval_minutes: 5,
     });

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Der Wächter. Wird alle 5 Minuten von außen aufgerufen (GitHub Action)
+ * Der Wächter. Wird alle 10 Minuten von außen aufgerufen (GitHub Action)
  * und zusätzlich von Vercel Cron als Rückfallebene.
  *
  * Absichtlich von außen getriggert: ein Wächter, der auf derselben Plattform

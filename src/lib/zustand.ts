@@ -62,7 +62,7 @@ export type Zustand = {
  * (Mail, Telegram, Supabase) und diese Datei auch dort gelesen wird, wo nur
  * die Kurzfassung gebraucht wird.
  */
-export const TAKT_MINUTEN = Number(process.env.CHECK_INTERVAL_MINUTES ?? 5);
+export const TAKT_MINUTEN = Number(process.env.CHECK_INTERVAL_MINUTES ?? 10);
 
 export function baueZustand(
   daten: StatusPageData,

@@ -14,7 +14,7 @@ import { zeit } from "./zeit";
 import type { ComponentStatus, IncidentImpact, IncidentStatus, Service } from "./types";
 
 /** Abstand zwischen zwei Messungen in Minuten - bestimmt die Ausfallminuten. */
-const INTERVAL_MINUTES = Number(process.env.CHECK_INTERVAL_MINUTES ?? 5);
+const INTERVAL_MINUTES = Number(process.env.CHECK_INTERVAL_MINUTES ?? 10);
 /** Nach dieser Zeit gilt eine Messung als fehlgeschlagen. */
 const TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS ?? 15000);
 

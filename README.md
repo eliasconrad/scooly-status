@@ -77,7 +77,7 @@ verhindert, dass jemand die App für komplett kaputt hält. Fehlt der Satz in de
 Datenbank, steht nur die Technik da; erfunden wird nichts.
 
 Die Schwellen stehen oben in `src/lib/checker.ts` (`FAIL_STREAK`, `RECOVER_STREAK`).
-Drei Messungen à 5 Minuten heißt: eine echte Störung ist nach spätestens 15 Minuten auf
+Drei Messungen à 10 Minuten heißt: eine echte Störung ist nach spätestens 30 Minuten auf
 der Seite, ein einzelner Schluckauf löst nichts aus.
 
 **Der Wächter läuft bei GitHub, nicht bei Vercel.** Vercel Cron in `vercel.json` ist nur die
@@ -237,9 +237,15 @@ Entscheidungslogik dahinter ist durch die Tests abgedeckt.
 
 ### Der Takt des Wächters
 
-Takt des externen Crons: **alle 5 Minuten** (muss zu `CHECK_INTERVAL_MINUTES=5`
+Takt des externen Crons: **alle 10 Minuten** (muss zu `CHECK_INTERVAL_MINUTES=10`
 in `.env.local` und bei Vercel passen - `rollup_day` bucht pro Fehlmessung
 genau diese Minutenzahl an Ausfallzeit).
+
+Seit dem 25.08.2026 zehn statt fünf Minuten. Fünf brachten nichts, was zehn
+nicht auch bringen: Der Wächter braucht je Lauf 5 bis 15 Sekunden, und keine
+Störung, die eine Statusseite melden soll, ist nach fünf Minuten wieder vorbei.
+Der doppelte Abstand halbiert die Läufe und das Wachstum der `checks`-Tabelle -
+und verdoppelt zugleich die Zeit bis zur Meldung, siehe unten.
 
 **Warum nicht GitHub Actions.** Das war bis zum 24.08.2026 der Plan und hat
 nicht funktioniert. GitHub behandelt `schedule` als Bitte und reiht die Läufe
@@ -262,7 +268,7 @@ nachdem er vorbei ist.
 
 - Titel: `Scooly Wächter`
 - URL: `https://status.scooly.dev/api/check`
-- Zeitplan: alle 5 Minuten
+- Zeitplan: alle 10 Minuten
 - Erweitert → Header: `Authorization: Bearer <CRON_SECRET>`
 - Benachrichtigung bei Fehlschlag an: `hallo@eliasconrad.eu`
 
@@ -275,7 +281,7 @@ schaden nicht, weil jede eine echte Messung ist und die Bewertung Messungen
 zählt und keine Uhrzeiten.
 
 **Wenn der Wächter verstummt.** Bleibt die letzte Messung länger als drei
-Takte aus (bei 5 Minuten also eine Viertelstunde), wird das Band grau und sagt
+Takte aus (bei 10 Minuten also eine halbe Stunde), wird das Band grau und sagt
 "Zustand unbekannt" statt "Alle Systeme betriebsbereit". Die Dienstliste
 darunter bleibt stehen - sie wurde ja wirklich gemessen, sie ist nur alt.
 

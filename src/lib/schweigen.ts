@@ -23,7 +23,7 @@
  * Dieselbe Drei wie FAIL_STREAK in `bewertung.ts`, und aus demselben Grund:
  * Ein einzelner ausgefallener Lauf ist ein Schluckauf - GitHub, ein
  * Netzhänger, ein Deploy, der dazwischenfunkt. Dreimal hintereinander ist
- * ein Muster. Bei einem Fünf-Minuten-Takt sind das 15 Minuten Stille.
+ * ein Muster. Bei einem Zehn-Minuten-Takt sind das 30 Minuten Stille.
  */
 export const SCHWEIGE_FAKTOR = 3;
 

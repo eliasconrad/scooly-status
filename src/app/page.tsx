@@ -13,7 +13,7 @@ import { waechterSchweigt } from "@/lib/schweigen";
 import { TAKT_MINUTEN } from "@/lib/zustand";
 import { worstStatus } from "@/lib/uptime";
 
-/** Alle 60 Sekunden neu bauen - der Wächter misst alle 5 Minuten. */
+/** Alle 60 Sekunden neu bauen - der Wächter misst alle 10 Minuten. */
 export const revalidate = 60;
 
 export default async function Page() {
