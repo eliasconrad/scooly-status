@@ -18,6 +18,52 @@ const INTERVAL_MINUTES = Number(process.env.CHECK_INTERVAL_MINUTES ?? 10);
 /** Nach dieser Zeit gilt eine Messung als fehlgeschlagen. */
 const TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS ?? 15000);
 
+/**
+ * ══ DER ZUGANG HINTER DEN TÜRSTEHER ═════════════════════════════════════════════════════════
+ *
+ * Seit dem 14.09.2026 liegt scooly.dev hinter dem Passwortdialog des Browsers (HTTP Basic Auth,
+ * `lib/tuersteher.ts` drüben im Hauptprojekt). Für den Wächter sah das aus wie ein Ausfall: 401
+ * ist >= 400, also `ok: false`, und nach drei Messungen stand ein grösserer Systemausfall auf der
+ * Seite. Er war keiner - die Seite lief, sie war nur zu.
+ *
+ * DIE ANTWORT IST NICHT, 401 ALS "LÄUFT" ZU WERTEN. Dann verschwindet auch der Tag, an dem sich
+ * jemand versehentlich selbst aussperrt, und das ist genau der Fall, den eine Statusseite zeigen
+ * soll. Stattdessen bekommt der Wächter das Passwort und misst, was ein eingeloggter Besucher
+ * sieht. Das ist strenger als vorher: Er prüft jetzt, dass die Seite wirklich ausliefert, und
+ * nicht bloss, dass irgendetwas antwortet.
+ *
+ * FORMAT: `PROBE_ZUGANG="nutzer:passwort"`. Fehlt die Variable, verhält sich alles wie früher.
+ */
+const PROBE_ZUGANG = process.env.PROBE_ZUGANG ?? "";
+
+/**
+ * An WEN der Zugang geschickt werden darf.
+ *
+ * Die Probe-Adressen stehen in der Datenbank, nicht im Code. Würde der Wächter den Kopf an jede
+ * Adresse hängen, die dort steht, schickte ein Tippfehler oder ein fremder Dienst in der Tabelle
+ * unser Passwort an einen fremden Server. Deshalb eine Namensliste, und zwar hier im Code.
+ */
+const ZUGANG_HOSTS = new Set(["scooly.dev", "www.scooly.dev"]);
+
+/**
+ * Der fertige `Authorization`-Kopf für diese Adresse - oder `null`, wenn keiner hingehört.
+ *
+ * ACHTUNG BEI DER APEX-DOMAIN: `scooly.dev` antwortet mit 308 auf `www.scooly.dev`, und eine
+ * Umleitung VERWIRFT den `Authorization`-Kopf. Eine Probe auf die nackte Domain läuft deshalb
+ * trotz richtigem Passwort in den 401. Die Probe-Adresse in der Datenbank muss `www` tragen.
+ */
+export function zugangFuer(url: string, zugang: string = PROBE_ZUGANG): string | null {
+  if (!zugang.includes(":")) return null;
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!ZUGANG_HOSTS.has(host)) return null;
+  return `Basic ${Buffer.from(zugang, "utf8").toString("base64")}`;
+}
+
 export type Probe = {
   ok: boolean;
   degraded: boolean;
@@ -45,10 +91,14 @@ export async function probe(service: Service): Promise<Probe> {
 
   const started = Date.now();
   try {
+    const kopf: Record<string, string> = { "User-Agent": "scooly-status-waechter/1.0" };
+    const zugang = zugangFuer(service.probe_url);
+    if (zugang) kopf.Authorization = zugang;
+
     const res = await fetch(service.probe_url, {
       method: "GET",
       redirect: "follow",
-      headers: { "User-Agent": "scooly-status-waechter/1.0" },
+      headers: kopf,
       signal: AbortSignal.timeout(TIMEOUT_MS),
       cache: "no-store",
     });
@@ -62,7 +112,7 @@ export async function probe(service: Service): Promise<Probe> {
       degraded: ok && response_ms > service.degraded_ms,
       status_code: res.status,
       response_ms,
-      error: ok ? null : `HTTP ${res.status}`,
+      error: ok ? null : fehlertextFuerStatus(res.status, Boolean(zugang)),
     };
   } catch (err) {
     return {
@@ -73,6 +123,19 @@ export async function probe(service: Service): Promise<Probe> {
       error: fehlertext(err),
     };
   }
+}
+
+/**
+ * Klartext statt nur einer Zahl - ein 401 hat hier genau zwei Ursachen, und die
+ * Unterscheidung spart bei der Fehlersuche eine halbe Stunde.
+ */
+function fehlertextFuerStatus(status: number, mitZugang: boolean): string {
+  if (status === 401) {
+    return mitZugang
+      ? "HTTP 401 trotz Zugang - falsches Passwort, oder die Probe-Adresse zeigt auf scooly.dev statt www.scooly.dev (die Umleitung verwirft den Kopf)"
+      : "HTTP 401 - die Seite verlangt ein Passwort, der Wächter hat keines (PROBE_ZUGANG setzen)";
+  }
+  return `HTTP ${status}`;
 }
 
 function fehlertext(err: unknown): string {
