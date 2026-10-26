@@ -75,6 +75,12 @@ Quelle: `.env.example`. Werte stehen lokal in `.env*`/`.dev.vars` oder bei Elias
 - Keine echten Nutzer- oder Kundendaten anlegen, ändern oder löschen; nur Testkonten und Testdaten.
 - Nie `git add -A` oder `git add .` - Elias arbeitet oft mit einer zweiten Sitzung im selben Repo.
 
+## Tests - was abgedeckt ist und was nicht
+
+- Abgedeckt: 18 Testdateien in `tests/` (Bewertung, Störung, Versand, Kontingent, Schema, Routen, Zugang …); laut Notiz 145 Tests, gegen absichtliche Fehler gegengeprüft.
+- Nicht abgedeckt: der Wächter-Lauf als GitHub Action und echte Mail-/Telegram-Zustellung.
+- Prüflauf 26.10.2026: lint ✓ · test und build ⚠ in der Sandbox nicht prüfbar (tsx/Turbopack brauchen Ports).
+
 ## Testvorgehen
 
 1. `npm run lint` → `npm run test` → `npm run build` (alle grün, sonst nicht fertig; `npm run build` zählt, nicht der Typecheck allein).
